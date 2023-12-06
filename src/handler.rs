@@ -26,7 +26,7 @@ impl EventHandler {
       Event::KeyDown { keycode, .. } => match keycode {
         Some(Keycode::Escape) => buffer.push(HInstruction::Escape),
         Some(Keycode::Return) => buffer.push(HInstruction::Return),
-        Some(key) => {println!("{:?}", key); buffer.push(HInstruction::Keypress((key as u8) as char))},
+        Some(key) => buffer.push(HInstruction::Keypress((key as u8) as char)),
         _ => {},
       },
       Event::MouseMotion {x, y, .. } => {

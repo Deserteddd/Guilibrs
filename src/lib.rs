@@ -60,10 +60,9 @@ impl<T> GUI<T>
             }
         },
         HInstruction::Keypress(ch) => {
-          println!("{:?}", ch);
           self.textboxes.iter_mut().for_each(|textbox| if textbox.is_active {
             match ch {
-              '\u{8}' => {println!("pop"); textbox.content.pop();},
+              '\u{8}' => {textbox.content.pop();},
               _ => textbox.content.push(*ch),
             }
           });
