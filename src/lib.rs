@@ -1,15 +1,11 @@
-//#![allow(warnings)]
+mod handler;
 use std::collections::VecDeque;
-use sdl2::mouse::MouseButton;
-use sdl2::surface::Surface;
-use sdl2::ttf::{Sdl2TtfContext, Font};
-use sdl2::{EventPump, Sdl};
+use sdl2::ttf::Sdl2TtfContext;
 use sdl2::video::Window;
-use sdl2::render::{Canvas, TextureCreator, TextureQuery, Texture};
+use sdl2::render::{Canvas, TextureQuery};
 use sdl2::pixels::Color;
 use sdl2::rect::Rect;
-use sdl2::event::Event;
-use sdl2::keyboard::Keycode;
+use crate::handler::{EventHandler, HInstruction};
 
 macro_rules! rect(
   ($x:expr, $y:expr, $w:expr, $h:expr) => (
@@ -17,20 +13,18 @@ macro_rules! rect(
   )
 );
 
-const FONT_PATH: &'static str = "C:/Windows/Fonts/Verdana.ttf";
-
 pub struct GUI<T> 
-where T: Copy,
+where T: Copy, T: Default
 {
   ttf_context: Sdl2TtfContext,
+  font: &'static str,
   canvas: Canvas<Window>,
-  event_pump: EventPump,
+  handler: EventHandler,
   buttons: Vec<Button<T>>,
   backround: Backround,
 }
-
 impl<T> GUI<T> 
-  where T: Copy
+  where T: Copy, T: Default
 {
   pub fn new() -> GuiBuilder<T> {
     GuiBuilder::new()
@@ -38,49 +32,37 @@ impl<T> GUI<T>
 
   pub fn poll(&mut self, instruction_buffer: &mut VecDeque<T>) -> bool{
     let mut running = true;
-    self.event_pump.poll_iter().for_each(|event| {
+    self.handler.poll(&Self::button_bounds(&self)).iter().for_each(|event| {
       match event {
-        Event::Quit {..} => running = false,
-        Event::KeyDown{keycode, ..} => match keycode { 
-          Some(Keycode::Escape) => running = false,
-          _ => {},
-        },
-        Event::MouseButtonDown {mouse_btn, x, y, ..} => {
-          if mouse_btn == MouseButton::Left{
-            for i in 0..self.buttons.len(){
-              if self.buttons[i].in_bounds(x, y) {
-                self.buttons[i].push();
-              }
-            }
-          }
-        },
-        Event::MouseButtonUp {mouse_btn, x, y, ..} => {
-          if mouse_btn == MouseButton::Left {
-            for i in 0..self.buttons.len(){
-              if self.buttons[i].is_pressed && self.buttons[i].in_bounds(x, y){
-                instruction_buffer.push_back(self.buttons[i].release())
-              } else {
-                self.buttons[i].release();
-              }
-            }
-          }
+        HInstruction::Quit {..} => {
+          println!("Quitting");
+          running = false
         }
-        _ => {},
+        HInstruction::Hover(u) => {
+          self.buttons[*u].is_hovered = true;
+        },
+        HInstruction::UnHover(u) => {
+          self.buttons[*u].is_hovered = false
+        },
+        HInstruction::Click(u) => {
+          instruction_buffer.push_back(self.buttons[*u].click())
+        }
       };
     });
+    assert!(instruction_buffer.len() <= 1);
     running
   }
 
   pub fn draw(&mut self) -> Result<(), String> {
     let texture_creator = self.canvas.texture_creator();
-    let mut font = self.ttf_context.load_font(FONT_PATH, 24)?;
+    let mut font = self.ttf_context.load_font(self.font, 24)?;
     font.set_style(sdl2::ttf::FontStyle::NORMAL);
 
     self.backround.render(&mut self.canvas)?;
-    for i in &self.buttons {
+    for i in self.buttons.iter() {
       i.render(&mut self.canvas)?;
       let surface = font
-        .render(i.label.string)
+        .render(i.label)
         .blended(Color::RGB(0, 0, 0))
         .map_err(|e| e.to_string())?;
       let texture = texture_creator
@@ -88,22 +70,29 @@ impl<T> GUI<T>
         .map_err(|e| e.to_string())?;
       let TextureQuery {width, height, ..} = texture.query();
       
-      self.canvas.copy(&texture, None, rect!(i.rect.x+20, i.rect.y+100, width, height))?;
+      self.canvas.copy(&texture, None, rect!(i.rect.x + 30, i.rect.y + 20, width, height))?;
     }
     self.canvas.present();
     Ok(())
   }
+
+  fn button_bounds(&self) -> Vec<Rect>{
+    self.buttons.iter().map(|button| button.rect).collect::<Vec<Rect>>()
+  }
 }
 
 // GuiBuilder
-pub struct GuiBuilder<T> {
+pub struct GuiBuilder<T> 
+where T: Copy, T: Default
+{
   window_size: (u32, u32),
   backround_color: Option<Color>,
   window_title: &'static str,
   buttons: Vec<Button<T>>,
+  font: &'static str,
 }
 impl<T> GuiBuilder<T>
-  where T: Copy,
+  where T: Copy, T: Default
 {
   pub fn new() -> GuiBuilder<T> {
     GuiBuilder {
@@ -111,6 +100,7 @@ impl<T> GuiBuilder<T>
       backround_color: None,
       window_title: "",
       buttons: vec![],
+      font: "",
     }
   }
   pub fn color(mut self, rgb: (u8, u8, u8)) -> GuiBuilder<T> {
@@ -125,7 +115,10 @@ impl<T> GuiBuilder<T>
     self.buttons = buttons;
     self
   }
-
+  pub fn font(mut self, s: &'static str) -> GuiBuilder<T> {
+    self.font = s;
+    self
+  }
   pub fn size(mut self, w: u32, h: u32) -> GuiBuilder<T> {
     self.window_size.0 = w;
     self.window_size.1 = h;
@@ -134,6 +127,9 @@ impl<T> GuiBuilder<T>
   pub fn build(self) -> Result<GUI<T>, String>{
     if self.backround_color.is_none() {
       return Err("GUI::backround_color must be set".to_string());
+    }
+    if self.font.is_empty() {
+      return Err("GUI::font must be set".to_string());
     }
     let sdl_context = sdl2::init()?;
     let ttf_context = sdl2::ttf::init().map_err(|e| e.to_string())?;
@@ -145,11 +141,12 @@ impl<T> GuiBuilder<T>
       .into_canvas()
       .build()
       .map_err(|e| e.to_string())?;
-    let event_pump = sdl_context.event_pump().unwrap();
     return Ok(GUI {
       ttf_context: ttf_context,
+      font: self.font,
       canvas: canvas,
-      event_pump: event_pump,
+      handler: EventHandler::new(&sdl_context)?,
+
       buttons: self.buttons,
       backround: Backround::new(
         self.backround_color.unwrap(),
@@ -161,45 +158,46 @@ impl<T> GuiBuilder<T>
 }
 
 //Button
-#[derive(Clone)]
-pub struct Button<T>{
+#[derive(Debug, Clone, Copy)]
+pub struct Button<T>
+where T: Copy, T: Default
+{
   color: Color,
   rect: Rect,
   callback: T,
   is_pressed: bool,
-  label: Text,
+  is_hovered: bool,
+  label: &'static str,
 }
-impl<T> Button<T> {
+impl<T> Button<T> 
+where T: Copy, T: Default
+{
   pub fn new() -> ButtonBuilder<T> {
     ButtonBuilder::new()
   }
 }
 impl<T> Widget<T> for Button<T> 
-where T: Copy
+where T: Copy, T: Default
 {
-  fn push(&mut self){
-    self.color = self.color.invert();
-    self.is_pressed = true;
-  }
-  fn release(&mut self) -> T {
-    if self.is_pressed{
-      self.color = self.color.invert();
-    }
-    self.is_pressed = false;
+  fn click(&self) -> T {
     self.callback
   }
-  fn in_bounds(&self, x: i32, y: i32) -> bool {
-    if x >= self.rect.x && x <= self.rect.x + self.rect.w &&
-       y >= self.rect.y && y <= self.rect.y + self.rect.h 
-    {
-      return true;
-    }
-    false
-  }
+}
+impl<T> Render for Button<T> 
+where T: Copy, T: Default
+{
   fn render(&self, canvas: &mut Canvas<Window>) -> Result<(), String> {
-    canvas.set_draw_color(self.color);
+    canvas.set_draw_color(match self.is_pressed || self.is_hovered{
+      false => self.color,
+      true => Color::RGBA(
+        255,
+        255,
+        255,
+        0
+      )
+    });
     canvas.fill_rect(self.rect)?;
-    Ok(())
+    Ok(()) 
   }
 }
 
@@ -207,12 +205,14 @@ where T: Copy
 pub struct ButtonBuilder<T> {
   color: Option<Color>,
   rect: Option<Rect>,
-  callback: Option<T>,
-  label: Text
+  callback: T,
+  label: &'static str
 }
-impl<T> ButtonBuilder<T> {
+impl<T> ButtonBuilder<T> 
+where T: Copy, T: Default
+{
   pub fn new() -> ButtonBuilder<T> {
-    ButtonBuilder { color: None, rect: None, callback: None, label: Text::default() }
+    ButtonBuilder { color: None, rect: None, callback: T::default(), label: " " }
   }
 
   pub fn color(mut self, rgb: (u8, u8, u8)) -> ButtonBuilder<T> {
@@ -224,18 +224,17 @@ impl<T> ButtonBuilder<T> {
     self
   }
   pub fn callback(mut self, cb: T) -> ButtonBuilder<T> {
-    self.callback = Some(cb);
+    self.callback = cb;
     self
   }
   pub fn label(mut self, s: &'static str) -> ButtonBuilder<T> {
-    self.label.string = s;
+    self.label = s;
     self
   }
-  pub fn font(mut self, path: &'static str) -> ButtonBuilder<T> {
-    self.label.font = path;
-    self
-  }
-  pub fn build(self) -> Result<Button<T>, String> {
+  pub fn build(mut self) -> Result<Button<T>, String> {
+    if self.label.is_empty() {
+      self.label = " ";
+    }
     if self.rect.is_none() {
       return Err("Button.rect must be set".to_string());
     }
@@ -245,27 +244,11 @@ impl<T> ButtonBuilder<T> {
     return Ok(Button {
       color: self.color.unwrap(),
       rect: self.rect.unwrap(),
-      callback: self.callback.unwrap(),
+      callback: self.callback,
       is_pressed: false,
+      is_hovered: false,
       label: self.label,
     });
-  }
-}
-
-//Text
-#[derive(Clone)]
-pub struct Text {
-  string: &'static str,
-  font: &'static str,
-}
-
-impl Text {
-  pub fn default() -> Text {
-    let string = "Lorem ipsum";
-    Text {
-      font: "C:/Windows/Fonts/Verdana.ttf",
-      string: string,
-    }
   }
 }
 
@@ -294,10 +277,6 @@ impl Render for Backround {
 pub trait Render {
   fn render(&self, canvas: &mut Canvas<Window>) -> Result<(), String>;
 }
-
 pub trait Widget<T> {
-  fn push(&mut self);
-  fn release(&mut self) -> T;
-  fn in_bounds(&self, x: i32, y: i32) -> bool;
-  fn render(&self, canvas: &mut Canvas<Window>) -> Result<(), String>;
+  fn click(&self) -> T;
 }

@@ -2,33 +2,35 @@ extern crate guilibrs;
 
 use std::collections::VecDeque;
 use guilibrs::{GUI, Button};
-const SCREENW: u32 = 600;
-const SCREENH: u32 = 400;
-const FONT_PATH: &'static str = "C:/Windows/Fonts/SourceCodePro-Regular.ttf";
+const SCREENW: u32 = 800;
+const SCREENH: u32 = 600;
+const FONT_PATH: &'static str = "C:/Windows/Fonts/vga850.fon";
+
 
 fn main() -> Result<(), String> {
   let mut gui = GUI::new()
     .buttons(vec![
       Button::new()
-        .rect((SCREENW / 3 - SCREENW / 4) as i32, SCREENH as i32 / 2 - 80, 100, 100)
-        .label("Yksi")
+        .rect((SCREENW / 3 - SCREENW / 4) as i32, SCREENH as i32 / 2 - 80, 100, 60)
+        .label("Red")
         .color((225, 40, 70))
         .callback(1)
         .build()?,
       Button::new()
-        .label("Kaksi")
-        .rect((2 * SCREENW / 3 - SCREENW / 4) as i32, SCREENH as i32 / 2 - 80, 100, 100)
+        .label("Green")
+        .rect((2 * SCREENW / 3 - SCREENW / 4) as i32, SCREENH as i32 / 2 - 80, 100, 60)
         .color((25, 250, 90))
         .callback(2)
         .build()?,
       Button::new()
-        .label("Kolme").font(FONT_PATH)
-        .rect((SCREENW - SCREENW / 4) as i32, SCREENH as i32 / 2 - 80, 100, 100)
+        .label("Blue")
+        .rect((SCREENW - SCREENW / 4) as i32, SCREENH as i32 / 2 - 80, 100, 60)
         .color((50, 100, 255))
         .callback(3)
         .build()?,
     ])
     .size(SCREENW, SCREENH)
+    .font(FONT_PATH)
     .color((40, 40, 40))
     .build()?;
   
@@ -36,10 +38,11 @@ fn main() -> Result<(), String> {
 
   while gui.poll(&mut instructions) {
     instructions.iter().for_each(|f| match f {
-      1 => println!("Yksi"),
-      2 => println!("Kaksi"),
-      3 => println!("Kolme"),
-      _ => println!("jne."),
+      0 => println!("Default functionality"),
+      1 => println!("Clicked red"),
+      2 => println!("Clicked green"),
+      3 => println!("Clicked blue"),
+      n => panic!("Received undeclared instruction from GUI: {n}"),
     });
     instructions.clear();
     gui.draw()?;
