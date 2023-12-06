@@ -19,18 +19,24 @@ impl EventHandler {
       lmb_down: (false, 0, 0),
     })
   }
-  pub fn poll(&mut self, buttons: &[Rect]) -> Vec<HInstruction>{
+  pub fn poll(&mut self, bounds: &[Rect]) -> Vec<HInstruction>{
     let mut buffer: Vec<HInstruction> = Vec::new();
     self.pump.poll_iter().for_each(|event| match event {
       Event::Quit {..} => buffer.push(HInstruction::Quit),
+      Event::KeyDown { keycode, .. } => match keycode {
+        Some(Keycode::Escape) => buffer.push(HInstruction::Escape),
+        Some(Keycode::Return) => buffer.push(HInstruction::Return),
+        Some(key) => {println!("{:?}", key); buffer.push(HInstruction::Keypress((key as u8) as char))},
+        _ => {},
+      },
       Event::MouseMotion {x, y, .. } => {
         let mut hover_instruction: Option<HInstruction> = None;
         if let Some(idx) = self.hovered {
-          if !in_bounds(&buttons[idx], x, y) {
+          if !in_bounds(&bounds[idx], x, y) {
             hover_instruction = Some(HInstruction::UnHover(idx))
           } 
         } else {
-          for (idx, b) in buttons.iter().enumerate() {
+          for (idx, b) in bounds.iter().enumerate() {
             if in_bounds(b, x, y) {
               hover_instruction = Some(HInstruction::Hover(idx));
             }
@@ -58,17 +64,12 @@ impl EventHandler {
         if mouse_btn == MouseButton::Left {
           self.lmb_down.0 = false;
           if let Some(idx) = self.hovered{
-            if in_bounds(&buttons[idx], self.lmb_down.1, self.lmb_down.2) {
+            if in_bounds(&bounds[idx], self.lmb_down.1, self.lmb_down.2) {
               buffer.push(HInstruction::Click(idx))
             }
           }
         }
       },
-      Event::KeyDown {keycode, ..} => 
-        if let Some(kc) = keycode { match kc {
-          Keycode::Escape => buffer.push(HInstruction::Quit),
-          _ => {},
-        }},
       _ => {},
     });
     buffer
@@ -81,6 +82,9 @@ pub enum HInstruction {
   Hover(usize),
   UnHover(usize),
   Click(usize),
+  Keypress(char),
+  Escape,
+  Return
 }
 
 fn in_bounds(rect: &Rect, x: i32, y: i32) -> bool {

@@ -1,6 +1,5 @@
 extern crate guilibrs;
 
-use std::collections::VecDeque;
 use guilibrs::{GUI, Button};
 const SCREENW: u32 = 800;
 const SCREENH: u32 = 600;
@@ -34,7 +33,7 @@ fn main() -> Result<(), String> {
     .color((40, 40, 40))
     .build()?;
   
-  let mut instructions: VecDeque<u8> = VecDeque::new();
+  let mut instructions: Vec<u8> = Vec::new();
 
   while gui.poll(&mut instructions) {
     instructions.iter().for_each(|f| match f {
