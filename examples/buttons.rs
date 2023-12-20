@@ -1,6 +1,6 @@
 extern crate guilibrs;
 
-use guilibrs::{GUI, Button};
+use guilibrs::{GUI, widget::Button};
 const SCREENW: u32 = 800;
 const SCREENH: u32 = 600;
 const FONT_PATH: &'static str = "C:/Windows/Fonts/vga850.fon";
@@ -35,7 +35,7 @@ fn main() -> Result<(), String> {
   
   let mut instructions: Vec<u8> = Vec::new();
 
-  while gui.poll(&mut instructions) {
+  while gui.run(&mut instructions) {
     instructions.iter().for_each(|f| match f {
       0 => println!("Default functionality"),
       1 => println!("Clicked red"),
