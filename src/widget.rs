@@ -53,6 +53,12 @@ impl Textbox {
   pub fn set_content(&mut self, s: String) {
     self.content = s
   }
+  pub fn get_content(&self) -> &str {
+    &self.content
+  }
+  pub fn clear(&mut self) {
+    self.content.clear();
+  }
   pub fn rect(&self) -> Rect {
     self.rect
   }

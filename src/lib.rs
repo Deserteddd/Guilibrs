@@ -5,7 +5,7 @@ use sdl2::video::Window;
 use sdl2::render::{Canvas, TextureQuery};
 use sdl2::pixels::Color;
 use sdl2::rect::Rect;
-use crate::handler::{EventHandler, HInstruction, TextMode};
+use crate::handler::{EventHandler, HInstruction};
 use crate::widget::{Textbox, Button};
 
 macro_rules! rect(
@@ -15,6 +15,11 @@ macro_rules! rect(
 );
 
 const DEFAULTFONT: &'static str = "C:/Windows/Fonts/Arial.ttf";
+
+pub enum GuiEvent<T: Copy>{
+  Quit,
+  Custom(T),
+}
 pub struct GUI<T> 
 where T: Copy
 {
@@ -33,52 +38,47 @@ impl<T> GUI<T>
     GuiBuilder::new()
   }
 
-  pub fn run(&mut self, instruction_buffer: &mut Vec<T>) -> bool{
-    let mut running = true;
-    self.handler.poll(&Self::get_bounds(&self)).iter().for_each(|event| {
+  pub fn tick(&mut self) -> Option<GuiEvent<T>> {
+    if let Some(event) = self.handler.poll(&Self::get_bounds(&self)) {
       match event {
-        HInstruction::Quit {..} => {
-          running = false;
-        }
-        HInstruction::Escape => {
-          running = false;
-        },
+        HInstruction::Quit {..} => return Some(GuiEvent::Quit),
+        
+        HInstruction::Escape => return Some(GuiEvent::Quit),
         HInstruction::Return => {
           self.deselect_textboxes();
         },
-        HInstruction::PushChar(c) => {
-          self.textboxes.iter_mut().for_each(|tb| if tb.is_active() {tb.push(*c as char)})
+        HInstruction::PushChar(c) =>  {
+          self.textboxes.iter_mut().for_each(|tb| if tb.is_active() {tb.push(c as char)})
         },
         HInstruction::PopChar => {
           self.textboxes.iter_mut().for_each(|tb| if tb.is_active() {tb.pop_char();})
         }
         HInstruction::Hover(u) => {
-          match self.which_widget(*u) {
+          match self.which_widget(u) {
             (WidgetType::Button, idx) => self.buttons[idx].is_hovered(true),
             _ => {},
           }
         },
         HInstruction::UnHover(u) => {
-          match self.which_widget(*u) {
+          match self.which_widget(u) {
             (WidgetType::Button, idx) => self.buttons[idx].is_hovered(false),
             _ => {},
           }
         },
         HInstruction::Click(u) => {
             self.deselect_textboxes();
-            match self.which_widget(*u) {
-              (WidgetType::Button, idx) => instruction_buffer.push(self.buttons[idx].click()),
+            match self.which_widget(u) {
+              (WidgetType::Button, idx) => return Some(GuiEvent::Custom(self.buttons[idx].click())),
               (WidgetType::Textbox, idx) => {
                 if self.textboxes[idx].is_clickable() {
                   self.textboxes[idx].set_active(true);
-                  self.handler.set_textmode(TextMode::Edit)
                 }
               },
             }
         },
-      };
-    });
-    running
+      }
+    }
+    None
   }
 
   pub fn draw(&mut self) -> Result<(), String> {
@@ -118,6 +118,10 @@ impl<T> GUI<T>
     };
   }
 
+  pub fn clear_textbox(&mut self, idx: usize) {
+    self.textboxes[idx].clear();
+  }
+
   fn get_bounds(&self) -> Vec<Rect>{
     let mut bounds = self.buttons
       .iter()
@@ -150,7 +154,6 @@ impl<T> GUI<T>
   fn deselect_textboxes(&mut self) {
     self.textboxes.iter_mut().for_each(|tb| {
       tb.set_active(false);
-      self.handler.set_textmode(TextMode::Normal)
     })
   }
 }

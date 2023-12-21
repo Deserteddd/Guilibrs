@@ -21,17 +21,15 @@ impl EventHandler {
       lmb_down: (false, 0, 0),
     })
   }
-  pub fn poll(&mut self, bounds: &[Rect]) -> Vec<HInstruction>{
-    let mut buffer: Vec<HInstruction> = Vec::new();
-    self.pump.poll_iter().for_each(|event| match event {
-      Event::Quit {..} => buffer.push(HInstruction::Quit),
-      Event::KeyDown { scancode, keycode, .. } => {
-        match self.kb_parser.parse_keycode(keycode, scancode) {
-          ParsedKey::HIns(handler_ins) => buffer.push(handler_ins),
-          ParsedKey::Ignore => {},
-        }
-      },
-      Event::MouseMotion {x, y, .. } => {
+  pub fn poll(&mut self, bounds: &[Rect]) -> Option<HInstruction>{
+    if let Some(event) = self.pump.poll_event(){
+      match event {
+        Event::Quit {..} => return Some(HInstruction::Quit),
+        Event::KeyDown { scancode, keycode, .. } => return match self.kb_parser.parse_keycode(keycode, scancode) {
+          ParsedKey::HIns(handler_ins) => Some(handler_ins),
+          ParsedKey::Ignore => None,
+        },
+        Event::MouseMotion {x, y, .. } => {
         let mut hover_instruction: Option<HInstruction> = None;
         if let Some(idx) = self.hovered {
           if !in_bounds(&bounds[idx], x, y) {
@@ -47,11 +45,11 @@ impl EventHandler {
         match hover_instruction {
           Some(HInstruction::Hover(idx)) => {
             self.hovered = Some(idx);
-            buffer.push(HInstruction::Hover(idx))
+            return Some(HInstruction::Hover(idx))
           },
           Some(HInstruction::UnHover(idx)) => {
             self.hovered = None;
-            buffer.push(HInstruction::UnHover(idx))
+            return Some(HInstruction::UnHover(idx))
           },
           Some(_) => {},
           None => {},
@@ -67,42 +65,32 @@ impl EventHandler {
           self.lmb_down.0 = false;
           if let Some(idx) = self.hovered{
             if in_bounds(&bounds[idx], self.lmb_down.1, self.lmb_down.2) {
-              buffer.push(HInstruction::Click(idx))
+              return Some(HInstruction::Click(idx))
             }
           }
         }
       },
       _ => {},
-    });
-    buffer
+    };
   }
-  pub fn set_textmode(&mut self, mode: TextMode) {
-    self.kb_parser.mode = mode;
+    None
   }
-}
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
-pub enum TextMode {
-  Normal,
-  Edit,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 enum ParsedKey {
   HIns(HInstruction),
-  //SetMode(TextMode),
   Ignore
 }
 
 struct KBParser {
   keyboard: KeyboardUtil,
-  mode: TextMode
 }
 impl KBParser {
   pub fn new(context: &Sdl) -> KBParser {
     KBParser { 
       keyboard: context.keyboard(),
-      mode: TextMode::Normal,
     }
   }
   
