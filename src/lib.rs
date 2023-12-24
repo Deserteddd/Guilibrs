@@ -2,7 +2,7 @@ mod handler;
 pub mod widget;
 use sdl2::ttf::Sdl2TtfContext;
 use sdl2::video::Window;
-use sdl2::render::{Canvas, TextureQuery};
+use sdl2::render::Canvas;
 use sdl2::pixels::Color;
 use sdl2::rect::Rect;
 use crate::handler::{EventHandler, HInstruction};
@@ -14,11 +14,10 @@ macro_rules! rect(
   )
 );
 
-const DEFAULTFONT: &'static str = "C:/Windows/Fonts/Arial.ttf";
-
 pub enum GuiEvent<T: Copy>{
   Quit,
   Custom(T),
+  KeyPress(u8),
 }
 pub struct GUI<T> 
 where T: Copy
@@ -46,12 +45,15 @@ impl<T> GUI<T>
         HInstruction::Escape => return Some(GuiEvent::Quit),
         HInstruction::Return => {
           self.deselect_textboxes();
+          return Some(GuiEvent::KeyPress(13))
         },
         HInstruction::PushChar(c) =>  {
-          self.textboxes.iter_mut().for_each(|tb| if tb.is_active() {tb.push(c as char)})
+          self.textboxes.iter_mut().for_each(|tb| if tb.is_active() {tb.push(c as char)});
+          return Some(GuiEvent::KeyPress(c))
         },
         HInstruction::PopChar => {
-          self.textboxes.iter_mut().for_each(|tb| if tb.is_active() {tb.pop_char();})
+          self.textboxes.iter_mut().for_each(|tb| if tb.is_active() {tb.pop_char();});
+          return Some(GuiEvent::KeyPress(8));
         }
         HInstruction::Hover(u) => {
           match self.which_widget(u) {
@@ -117,6 +119,10 @@ impl<T> GUI<T>
       _ => self.textboxes[idx].push(c),
     };
   }
+
+  pub fn pop_from_textbox(&mut self, idx: usize) -> Option<char> {
+    self.textboxes[idx].pop_char()
+  } 
 
   pub fn clear_textbox(&mut self, idx: usize) {
     self.textboxes[idx].clear();

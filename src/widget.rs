@@ -11,6 +11,8 @@ macro_rules! rect(
   )
 );
 
+const DEFAULT_BTN_COL: Color = Color::RGB(85, 85, 85);
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Textbox{
   rect: Rect,
@@ -93,14 +95,13 @@ impl Render for Textbox {
 }
 
 impl RenderText for Textbox {
-  fn render_text(&self, ttf: &Sdl2TtfContext, canvas: &mut Canvas<Window>, font: &'static str) -> Result<(), String> 
-  {
+  fn render_text(&self, ttf: &Sdl2TtfContext, canvas: &mut Canvas<Window>, font: &'static str) -> Result<(), String> {
     if self.content.is_empty() {
       return Ok(())
     }
     let texture_creator = canvas.texture_creator();
     let mut font = ttf.load_font(font, self.font_size)?;
-    font.set_style(sdl2::ttf::FontStyle::BOLD);
+    font.set_style(sdl2::ttf::FontStyle::NORMAL);
     let surface = font
       .render(&self.content)
       .blended(Color::RGB(0, 0, 0))
@@ -205,13 +206,7 @@ where T: Copy {
     Ok(())
   }
 }
-fn centered(rect: Rect, txt_w: u32, txt_h: u32) -> Rect {
-  let x_middle = rect.w / 2; 
-  let y_middle = rect.h / 2; 
 
-  let r = Rect::new(rect.x, rect.y, rect.w as u32, rect.h as u32);
-  r
-}
 
 //ButtonBuilder
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -257,7 +252,7 @@ where T: Copy
       return Err("Button.rect must be set".to_string());
     }
     if self.color.is_none() {
-      return Err("Button.color must be set".to_string());
+      self.color = Some(DEFAULT_BTN_COL);
     }
     if self.callback.is_none() {
       return Err("Button.callback must be set".to_string());

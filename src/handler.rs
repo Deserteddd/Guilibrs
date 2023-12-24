@@ -81,7 +81,7 @@ impl EventHandler {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 enum ParsedKey {
   HIns(HInstruction),
-  Ignore
+  Ignore,
 }
 
 struct KBParser {
@@ -107,6 +107,7 @@ impl KBParser {
     if let Some(keycode) = kc {
       match keycode as u8 {
         8 => {return HIns(HInstruction::PopChar)},
+        13 => {return HIns(HInstruction::Return)},
         27 => {return HIns(HInstruction::Escape)},
         32 => {return match altgr {
           true => Ignore,
