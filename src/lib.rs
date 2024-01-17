@@ -8,12 +8,15 @@ use sdl2::rect::Rect;
 use crate::handler::{EventHandler, HInstruction};
 use crate::widget::{Textbox, Button};
 
+
 macro_rules! rect(
   ($x:expr, $y:expr, $w:expr, $h:expr) => (
     Rect::new($x as i32, $y as i32, $w as u32, $h as u32)
   )
 );
 
+const DEFAULTFONT: &'static str = "./Courier_Prime.ttf";
+const BACKROUNDCOLOR: Color = Color::RGB(40, 40, 40);
 pub enum GuiEvent<T: Copy>{
   Quit,
   Custom(T),
@@ -175,7 +178,7 @@ pub struct GuiBuilder<T>
 where T: Copy
 {
   window_size: (u32, u32),
-  backround_color: Option<Color>,
+  backround_color: Color,
   window_title: &'static str,
   buttons: Vec<Button<T>>,
   textboxes: Vec<Textbox>,
@@ -187,15 +190,15 @@ impl<T> GuiBuilder<T>
   pub fn new() -> GuiBuilder<T> {
     GuiBuilder {
       window_size: (800, 600),
-      backround_color: None,
+      backround_color: BACKROUNDCOLOR,
       window_title: "",
       buttons: vec![],
       textboxes: vec![],
-      font: "",
+      font: DEFAULTFONT,
     }
   }
-  pub fn color(mut self, rgb: (u8, u8, u8)) -> GuiBuilder<T> {
-    self.backround_color = Some(Color::RGB(rgb.0, rgb.1, rgb.2));
+  pub fn color_rgb(mut self, rgb: (u8, u8, u8)) -> GuiBuilder<T> {
+    self.backround_color = Color::RGB(rgb.0, rgb.1, rgb.2);
     self
   }
   pub fn title(mut self, s: &'static str) -> GuiBuilder<T> {
@@ -220,12 +223,7 @@ impl<T> GuiBuilder<T>
     self
   }
   pub fn build(self) -> Result<GUI<T>, String>{
-    if self.backround_color.is_none() {
-      return Err("GUI::backround_color must be set".to_string());
-    }
-    if self.font.is_empty() {
-      return Err("GUI::font must be set".to_string());
-    }
+
     let sdl_context = sdl2::init()?;
     let ttf_context = sdl2::ttf::init().map_err(|e| e.to_string())?;
     let canvas = sdl_context.video()?
@@ -244,7 +242,7 @@ impl<T> GuiBuilder<T>
       buttons: self.buttons,
       textboxes: self.textboxes,
       backround: Backround::new(
-        self.backround_color.unwrap(),
+        self.backround_color,
         self.window_size.0,
         self.window_size.1,
       ),

@@ -25,7 +25,7 @@ pub struct Textbox{
 impl Textbox {
   pub fn new(x: i32, y: i32, w: u32, h: u32) -> Textbox {
     Textbox { 
-      rect: Rect::new(x, y, w, h),
+      rect: rect!(x, y, w, h),
       font_size: 24,
       content: String::new(),
       is_active: false, 
@@ -183,7 +183,7 @@ where T: Copy {
   &self, ttf: &Sdl2TtfContext, canvas: &mut Canvas<Window>, font: &'static str)
   -> Result<(), String> {
     let texture_creator = canvas.texture_creator();
-    let mut font = ttf.load_font(font, 0)?;
+    let mut font = ttf.load_font(font, 24)?;
     font.set_style(sdl2::ttf::FontStyle::NORMAL);
     let surface = font
       .render(&self.label)
