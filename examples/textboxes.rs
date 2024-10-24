@@ -1,24 +1,33 @@
 extern crate guilibrs;
 
 use guilibrs::gui::GUI;
-use guilibrs::widget::{Textbox, TextAlign};
+use guilibrs::textfield::{TextField, TextAlign};
+use guilibrs::button::Button;
 
 fn main() -> Result<(), String> {
-    let mut gui: GUI<()> = GUI::new()
-        .title("Textboxes")
-        .textboxes(vec![
-            Textbox::new(20, 20, 340, 40)
-                .label("username")
+    let mut gui: GUI<u8> = GUI::new()
+        .title("TextFieldes")
+        .textfields(vec![
+            TextField::new(20, 20, 340, 40)
+                .label("Left aligned textfield")
+                .align(TextAlign::Left)
+                .clickable(),
+            TextField::new(20, 80, 340, 40)
+                .label("Center aligned textfield")
                 .align(TextAlign::Center)
                 .clickable(),
-            Textbox::new(20, 80, 340, 40)
-                .label("email")
-                .align(TextAlign::Center)
-                .clickable(),
-            Textbox::new(20, 140, 340, 40)
-                .label("password")
-                .align(TextAlign::Center)
+            TextField::new(20, 140, 340, 40)
+                .label("Right aligned textfield")
+                .align(TextAlign::Right)
                 .clickable()
+        ])
+        .buttons(vec![
+            Button::new()
+                .rect(20, 200, 340, 40)
+                .label("Print textfields")
+                .color((255, 255, 255))
+                .callback(1)
+                .build()?
         ])
         .size(380, 540)
         .color_rgb(40, 40, 40)
@@ -28,6 +37,13 @@ fn main() -> Result<(), String> {
         match gui.poll() {
             guilibrs::gui::GuiEvent::None => {}
             guilibrs::gui::GuiEvent::Quit => break 'running,
+            guilibrs::gui::GuiEvent::Custom(u) => match u {
+                1 => gui
+                .textfields()
+                .filter(|t| !t.get_content().is_empty())
+                .for_each(|t| println!("{}: {}", t.get_label(), t.get_content())),
+                _ => {}
+            }
             _ => {}
         }
         gui.draw()?;

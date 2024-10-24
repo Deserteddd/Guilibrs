@@ -1,6 +1,7 @@
 mod handler;
 pub mod gui;
-pub mod widget;
+pub mod textfield;
+pub mod button;
 use sdl2::render::Canvas;
 use sdl2::ttf::Sdl2TtfContext;
 use sdl2::video::Window;
@@ -10,7 +11,7 @@ use sdl2::video::Window;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 enum WidgetType {
     Button,
-    Textbox,
+    TextField,
 }
 
 pub trait Render {

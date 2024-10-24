@@ -1,14 +1,17 @@
 use crate::handler::{EventHandler, HandlerEvent};
-use crate::widget::{Button, Textbox};
+use crate::textfield::TextField;
+use crate::button::Button;
+
+use crate::Widget;
+use crate::WidgetType;
+use crate::Render;
+use crate::RenderText;
+
 use sdl2::pixels::Color;
 use sdl2::rect::Rect;
 use sdl2::render::Canvas;
 use sdl2::ttf::Sdl2TtfContext;
 use sdl2::video::Window;
-use crate::WidgetType;
-use crate::Widget;
-use crate::Render;
-use crate::RenderText;
 
 macro_rules! _rect(
   ($x:expr, $y:expr, $w:expr, $h:expr) => (
@@ -35,7 +38,7 @@ where
     canvas: Canvas<Window>,
     handler: EventHandler,
     buttons: Vec<Button<T>>,
-    textboxes: Vec<Textbox>,
+    textboxes: Vec<TextField>,
 }
 impl<T> GUI<T>
 where
@@ -91,7 +94,7 @@ where
                     (WidgetType::Button, idx) => {
                         return GuiEvent::Custom(self.buttons[idx].click());
                     }
-                    (WidgetType::Textbox, idx) => {
+                    (WidgetType::TextField, idx) => {
                         if self.textboxes[idx].is_clickable() {
                             self.textboxes[idx].set_active(true);
                         }
@@ -105,42 +108,7 @@ where
             }
             HandlerEvent::TabPress => {
                 // Switch to next clickable textbox
-                let first_clickable = self.textboxes
-                    .iter()
-                    .position(|tb| tb.is_clickable());
-
-                if first_clickable.is_none() {
-                    return GuiEvent::None;
-                }
-                let first_clickable = first_clickable.unwrap();
-                println!("first clickable: {}", first_clickable);
-
-                let active = self.textboxes
-                    .iter()
-                    .position(|tb| tb.is_active());
-
-                if active.is_none() {
-                    self.textboxes[first_clickable].set_active(true);
-                    return GuiEvent::None;
-                }
-                let active = active.unwrap();
-                println!("Active: {}", active);
-
-                let mut next_clickable = self.textboxes
-                    .iter()
-                    .enumerate()
-                    .skip(active+1)
-                    .find(|(_, tb)| tb.is_clickable())
-                    .map(|(idx, _)| idx);
-
-                if next_clickable.is_none() {
-                    next_clickable = self.textboxes
-                        .iter()
-                        .position(|tb| tb.is_clickable());
-                }
-
-                self.textboxes[active].set_active(false);
-                self.textboxes[next_clickable.unwrap()].set_active(true);
+                self.switch_active_textbox();
 
                 GuiEvent::None
             }
@@ -162,9 +130,16 @@ where
         self.canvas.present();
         Ok(())
     }
-    pub fn textboxes(&self) -> std::slice::Iter<Textbox> {
+
+    pub fn textfields(&self) -> std::slice::Iter<TextField> {
         self.textboxes.iter()
     }
+
+    pub fn textfields_mut(&mut self) -> std::slice::IterMut<TextField> {
+        self.textboxes.iter_mut()
+    }
+
+
     pub fn get_input(&self, idx: usize) -> String {
         if idx >= self.textboxes.len() {
             panic!("get_input: Invalid textbox index")
@@ -198,6 +173,43 @@ where
         self.textboxes[idx].clear();
     }
 
+    fn switch_active_textbox(&mut self) {
+        let first_clickable = self.textboxes
+            .iter()
+            .position(|tb| tb.is_clickable());
+
+        if first_clickable.is_none() {
+            return
+        }
+        let first_clickable = first_clickable.unwrap();
+
+        let active = self.textboxes
+            .iter()
+            .position(|tb| tb.is_active());
+
+        if active.is_none() {
+            self.textboxes[first_clickable].set_active(true);
+            return
+        }
+        let active = active.unwrap();
+
+        let mut next_clickable = self.textboxes
+            .iter()
+            .enumerate()
+            .skip(active+1)
+            .find(|(_, tb)| tb.is_clickable())
+            .map(|(idx, _)| idx);
+
+        if next_clickable.is_none() {
+            next_clickable = self.textboxes
+                .iter()
+                .position(|tb| tb.is_clickable());
+        }
+
+        self.textboxes[active].set_active(false);
+        self.textboxes[next_clickable.unwrap()].set_active(true);
+    }
+
     fn get_bounds(&self) -> Vec<Rect> {
         let mut bounds = self
             .buttons
@@ -224,7 +236,7 @@ where
         if idx < buttons && buttons > 0 {
             (WidgetType::Button, idx)
         } else if idx - buttons < textboxes {
-            (WidgetType::Textbox, idx - buttons)
+            (WidgetType::TextField, idx - buttons)
         } else {
             panic!()
         }
@@ -259,7 +271,7 @@ where
     backround_color: Color,
     window_title: &'static str,
     buttons: Vec<Button<T>>,
-    textboxes: Vec<Textbox>,
+    textboxes: Vec<TextField>,
     font: &'static str,
 }
 impl<T> GuiBuilder<T>
@@ -288,7 +300,7 @@ where
         self.buttons = buttons;
         self
     }
-    pub fn textboxes(mut self, tb: Vec<Textbox>) -> GuiBuilder<T> {
+    pub fn textfields(mut self, tb: Vec<TextField>) -> GuiBuilder<T> {
         self.textboxes = tb;
         self
     }
