@@ -1,4 +1,4 @@
-use crate::{Render, RenderText, Widget};
+use crate::{Render, RenderText, };
 use sdl2::pixels::Color;
 use sdl2::rect::Rect;
 use sdl2::render::{Canvas, TextureQuery};
@@ -30,31 +30,42 @@ where
 impl<T> Button<T>
 where
     T: Copy,
+    T: Default
 {
-    pub fn new() -> ButtonBuilder<T> {
-        ButtonBuilder::new()
+    pub fn new(x: i32, y: i32, w: u32, h: u32) -> Button<T> {
+        Button {
+            color: DEFAULT_BTN_COL,
+            label: "",
+            font_size: 24,
+            rect: rect!(x, y, w, h),
+            callback: T::default(),
+            is_pressed: false,
+            is_hovered: false,
+        }
     }
-    pub fn set_label(&mut self, s: &'static str) {
+    pub const fn click(&self) -> T {
+        self.callback
+    }
+    pub fn label(mut self, s: &'static str) -> Button<T> {
         self.label = s;
+        self
+    }
+    pub fn color_rgb(mut self, r: u8, g: u8, b: u8) -> Button<T> {
+        self.color = Color::RGB(r, g, b);
+        self
+    }
+    pub fn callback(mut self, cb: T) -> Button<T> {
+        self.callback = cb;
+        self
     }
     pub fn is_hovered(&mut self, b: bool) {
         self.is_hovered = b;
     }
-    pub fn bounds(&self) -> Rect {
+    pub const fn bounds(&self) -> Rect {
         self.rect
     }
 }
-impl<T> Widget<T> for Button<T>
-where
-    T: Copy,
-{
-    fn click(&mut self) -> T {
-        self.callback
-    }
-    fn set_label(&mut self, s: &'static str) {
-        self.label = s;
-    }
-}
+
 impl<T> Render for Button<T>
 where
     T: Copy,
@@ -108,76 +119,6 @@ where
             ),
         )?;
 
-        //Bounding box:
-
         Ok(())
-    }
-}
-
-//ButtonBuilder
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ButtonBuilder<T> {
-    color: Option<Color>,
-    rect: Option<Rect>,
-    callback: Option<T>,
-    label: &'static str,
-    font_size: u16,
-}
-impl<T> ButtonBuilder<T>
-where
-    T: Copy,
-{
-    pub const fn new() -> ButtonBuilder<T> {
-        ButtonBuilder {
-            color: None,
-            rect: None,
-            callback: None,
-            label: " ",
-            font_size: 24,
-        }
-    }
-
-    pub const fn color(mut self, rgb: (u8, u8, u8)) -> ButtonBuilder<T> {
-        self.color = Some(Color::RGB(rgb.0, rgb.1, rgb.2));
-        self
-    }
-    pub fn rect(mut self, x: i32, y: i32, w: u32, h: u32) -> ButtonBuilder<T> {
-        self.rect = Some(rect!(x, y, w, h));
-        self
-    }
-    pub const fn callback(mut self, cb: T) -> ButtonBuilder<T> {
-        self.callback = Some(cb);
-        self
-    }
-    pub const fn label(mut self, s: &'static str) -> ButtonBuilder<T> {
-        self.label = s;
-        self
-    }
-    pub const fn font_size(mut self, n: u16) -> ButtonBuilder<T> {
-        self.font_size = n;
-        self
-    }
-    pub fn build(mut self) -> Result<Button<T>, String> {
-        if self.label.is_empty() {
-            self.label = "";
-        }
-        if self.rect.is_none() {
-            return Err("Button.rect must be set".to_string());
-        }
-        if self.color.is_none() {
-            self.color = Some(DEFAULT_BTN_COL);
-        }
-        if self.callback.is_none() {
-            return Err("Button.callback must be set".to_string());
-        }
-        return Ok(Button {
-            color: self.color.unwrap(),
-            rect: self.rect.unwrap(),
-            callback: self.callback.unwrap(),
-            is_pressed: false,
-            is_hovered: false,
-            label: self.label,
-            font_size: self.font_size,
-        });
     }
 }

@@ -4,12 +4,21 @@ use eval::eval;
 use guilibrs::{button::Button, textfield::{TextAlign, TextField}};
 use guilibrs::gui::{GuiEvent, GUI};
 
-#[derive(Clone, Copy)]
-enum Input {
-    Num(char),
+#[derive(Clone, Copy, Default)]
+enum Callback {
+    Num(u8),
     Equals,
+    #[default]
     Clear,
-}
+}    
+
+const BUTTONS: [[&str; 4]; 5] = [
+    ["%", "/", "*", "-"],
+    ["7", "8", "9", "+"],
+    ["4", "5", "6", "("],
+    ["1", "2", "3", ")"],
+    [".", "0", "c", "="],
+];
 
 fn main() -> Result<(), String> {
     let mut calc = setup()?;
@@ -18,28 +27,10 @@ fn main() -> Result<(), String> {
         match calc.poll() {
             GuiEvent::None => {}
             GuiEvent::Quit => running = false,
-            GuiEvent::KeyPress(c) => match c {
-                8 => {
-                    calc.pop_from_textbox(0);
-                }
-                37 => calc.push_to_textbox(0, '%'),
-                40 => calc.push_to_textbox(0, '('),
-                41 => calc.push_to_textbox(0, ')'),
-                42 => calc.push_to_textbox(0, '*'),
-                43 => calc.push_to_textbox(0, '+'),
-                45 => calc.push_to_textbox(0, '-'),
-                47 => calc.push_to_textbox(0, '/'),
-                13 => calc.set_textbox_content(0, evaluate(calc.textfields().nth(0).unwrap())),
-                s => {
-                    if s.is_ascii_digit() {
-                        calc.push_to_textbox(0, s as char)
-                    }
-                }
-            },
-            GuiEvent::Custom(custom) => match custom {
-                Input::Num(c) => calc.push_to_textbox(0, c),
-                Input::Clear => calc.clear_textbox(0),
-                Input::Equals => {
+            GuiEvent::Callback(cb) => match cb {
+                Callback::Num(c) => calc.push_to_textbox(0, c as char),
+                Callback::Clear => calc.clear_textbox(0),
+                Callback::Equals => {
                     calc.set_textbox_content(0, evaluate(calc.textfields().nth(0).unwrap()))
                 }
             },
@@ -59,34 +50,24 @@ fn evaluate(textbox: &TextField) -> String {
     }
 }
 
-fn setup() -> Result<GUI<Input>, String> {
-    const BUTTONS: [[&str; 4]; 5] = [
-        ["%", "/", "*", "-"],
-        ["7", "8", "9", "+"],
-        ["4", "5", "6", "("],
-        ["1", "2", "3", ")"],
-        [".", "0", "c", "="],
-    ];
-
-    let mut buttons: Vec<Button<Input>> = vec![];
+fn setup() -> Result<GUI<Callback>, String> {
+    let mut buttons: Vec<Button<Callback>> = vec![];
     for i in 0..4 {
         for j in 0..5 {
             let button = BUTTONS[j][i];
             buttons.push(
-                Button::new()
-                    .rect(20 + i as i32 * 90, 90 + j as i32 * 90, 60, 60)
+                Button::new(20 + i as i32 * 90, 90 + j as i32 * 90, 60, 60)
                     .label(button)
-                    .color((
+                    .color_rgb(
                         50 + i as u8 * 50,
                         50 + j as u8 * 50,
                         255 - 20 * (i + j) as u8,
-                    ))
+                    )
                     .callback(match button {
-                        "=" => Input::Equals,
-                        "c" => Input::Clear,
-                        _ => Input::Num(button.chars().nth(0).unwrap()),
+                        "=" => Callback::Equals,
+                        "c" => Callback::Clear,
+                        _ => Callback::Num(button.chars().next().unwrap() as u8),
                     })
-                    .build()?,
             )
         }
     }

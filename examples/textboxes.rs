@@ -6,7 +6,7 @@ use guilibrs::button::Button;
 
 fn main() -> Result<(), String> {
     let mut gui: GUI<u8> = GUI::new()
-        .title("TextFieldes")
+        .title("TextFields")
         .textfields(vec![
             TextField::new(20, 20, 340, 40)
                 .label("Left aligned textfield")
@@ -22,12 +22,10 @@ fn main() -> Result<(), String> {
                 .clickable()
         ])
         .buttons(vec![
-            Button::new()
-                .rect(20, 200, 340, 40)
+            Button::new(20, 200, 340, 40)
                 .label("Print textfields")
-                .color((255, 255, 255))
+                .color_rgb(255, 255, 255)
                 .callback(1)
-                .build()?
         ])
         .size(380, 540)
         .color_rgb(40, 40, 40)
@@ -37,14 +35,13 @@ fn main() -> Result<(), String> {
         match gui.poll() {
             guilibrs::gui::GuiEvent::None => {}
             guilibrs::gui::GuiEvent::Quit => break 'running,
-            guilibrs::gui::GuiEvent::Custom(u) => match u {
+            guilibrs::gui::GuiEvent::Callback(u) => match u {
                 1 => gui
                 .textfields()
                 .filter(|t| !t.get_content().is_empty())
                 .for_each(|t| println!("{}: {}", t.get_label(), t.get_content())),
                 _ => {}
             }
-            _ => {}
         }
         gui.draw()?;
     }

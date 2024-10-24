@@ -1,4 +1,4 @@
-use crate::{Render, RenderText, Widget};
+use crate::{Render, RenderText};
 use sdl2::pixels::Color;
 use sdl2::rect::Rect;
 use sdl2::render::{Canvas, TextureQuery};
@@ -59,8 +59,14 @@ impl TextField {
         self.text_align = align;
         self
     }
-    pub fn push(&mut self, c: char) {
-        self.content.push(c)
+    pub const fn rect(&self) -> Rect {
+        self.rect
+    }
+    pub const fn is_clickable(&self) -> bool {
+        self.clickable
+    }
+    pub fn push(&mut self, text: String) {
+        self.content.push_str(text.as_str())
     }
     pub fn pop_char(&mut self) -> Option<char> {
         self.content.pop()
@@ -76,13 +82,7 @@ impl TextField {
     }
     pub fn clear(&mut self) {
         self.content.clear();
-    }
-    pub const fn rect(&self) -> Rect {
-        self.rect
-    }
-    pub const fn is_clickable(&self) -> bool {
-        self.clickable
-    }
+    }    
 }
 
 impl std::fmt::Display for TextField {
@@ -91,18 +91,6 @@ impl std::fmt::Display for TextField {
     }
 }
 
-impl Widget<()> for TextField {
-    fn click(&mut self) {
-        if !self.clickable {
-        } else {
-            self.is_active = true;
-        }
-    }
-
-    fn set_label(&mut self, s: &'static str) {
-        self.content = String::from(s);
-    }
-}
 impl Render for TextField {
     fn render(&self, canvas: &mut Canvas<Window>) -> Result<(), String> {
         canvas.set_draw_color(Color::RGB(200, 200, 200));

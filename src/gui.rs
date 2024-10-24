@@ -2,7 +2,6 @@ use crate::handler::{EventHandler, HandlerEvent};
 use crate::textfield::TextField;
 use crate::button::Button;
 
-use crate::Widget;
 use crate::WidgetType;
 use crate::Render;
 use crate::RenderText;
@@ -24,8 +23,7 @@ const BACKROUNDCOLOR: Color = Color::RGB(40, 40, 40);
 
 pub enum GuiEvent<T> {
     Quit,
-    Custom(T),
-    KeyPress(u8),
+    Callback(T),
     None
 }
 
@@ -43,6 +41,7 @@ where
 impl<T> GUI<T>
 where
     T: Copy,
+    T: Default,
 {
     pub fn new() -> GuiBuilder<T> {
         GuiBuilder::new()
@@ -56,15 +55,15 @@ where
             HandlerEvent::Escape => GuiEvent::Quit,
             HandlerEvent::Return => {
                 self.deselect_textboxes();
-                GuiEvent::KeyPress(13)
+                GuiEvent::None
             },
-            HandlerEvent::PushChar(c) => {
+            HandlerEvent::TextInput(text) => {
                 self.textboxes.iter_mut().for_each(|tb| {
                     if tb.is_active() {
-                        tb.push(c as char)
+                        tb.push(text.clone())
                     }
                 });
-                GuiEvent::KeyPress(c)
+                GuiEvent::None
             },
             HandlerEvent::PopChar => {
                 self.textboxes.iter_mut().for_each(|tb| {
@@ -72,7 +71,7 @@ where
                         tb.pop_char();
                     }
                 });
-                GuiEvent::KeyPress(8)
+                GuiEvent::None
             },
             HandlerEvent::Hover(u) => {
                 match self.which_widget(u) {
@@ -92,7 +91,7 @@ where
                 self.deselect_textboxes();
                 match self.which_widget(u) {
                     (WidgetType::Button, idx) => {
-                        return GuiEvent::Custom(self.buttons[idx].click());
+                        return GuiEvent::Callback(self.buttons[idx].click());
                     }
                     (WidgetType::TextField, idx) => {
                         if self.textboxes[idx].is_clickable() {
@@ -107,9 +106,7 @@ where
                 GuiEvent::None
             }
             HandlerEvent::TabPress => {
-                // Switch to next clickable textbox
                 self.switch_active_textbox();
-
                 GuiEvent::None
             }
         }
@@ -118,13 +115,13 @@ where
     pub fn draw(&mut self) -> Result<(), String> {
         self.canvas.set_draw_color(BACKROUNDCOLOR);
         self.canvas.clear();
-        for i in self.buttons.iter() {
-            i.render(&mut self.canvas)?;
-            i.render_text(&self.ttf_context, &mut self.canvas, self.font)?;
+        for btn in self.buttons.iter() {
+            btn.render(&mut self.canvas)?;
+            btn.render_text(&self.ttf_context, &mut self.canvas, self.font)?;
         }
-        for i in self.textboxes.iter() {
-            i.render(&mut self.canvas)?;
-            i.render_text(&self.ttf_context, &mut self.canvas, self.font)?;
+        for tb in self.textboxes.iter() {
+            tb.render(&mut self.canvas)?;
+            tb.render_text(&self.ttf_context, &mut self.canvas, self.font)?;
         }
 
         self.canvas.present();
@@ -157,12 +154,7 @@ where
     }
 
     pub fn push_to_textbox(&mut self, idx: usize, c: char) {
-        match c as u8 {
-            8 => {
-                self.textboxes[idx].pop_char();
-            }
-            _ => self.textboxes[idx].push(c),
-        };
+        self.textboxes[idx].push(c.to_string());
     }
 
     pub fn pop_from_textbox(&mut self, idx: usize) -> Option<char> {
@@ -332,7 +324,6 @@ where
             handler: EventHandler::new(&sdl_context)?,
             buttons: self.buttons,
             textboxes: self.textboxes,
-            // backround: Backround::new(self.backround_color, self.window_size.0, self.window_size.1),
         });
     }
 }

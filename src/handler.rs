@@ -21,12 +21,8 @@ impl EventHandler {
     pub fn poll(&mut self, bounds: &[Rect]) -> HandlerEvent {
         match self.pump.wait_event() {
             Event::Quit { .. } => HandlerEvent::Quit,
-            Event::TextInput { text, .. } => {
-                if let Some(c) = text.chars().next() {
-                    return HandlerEvent::PushChar(c as u8);
-                }
-                HandlerEvent::None
-            },
+            Event::TextInput { text, .. } => HandlerEvent::TextInput(text),
+
             Event::KeyDown { keycode, .. } => {
                 self.parse_keycode(keycode)
             },
@@ -92,7 +88,7 @@ impl EventHandler {
 
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum HandlerEvent {
     Quit,
     Hover(usize),
@@ -100,7 +96,7 @@ pub enum HandlerEvent {
     Click(usize),
     Escape,
     Return,
-    PushChar(u8),
+    TextInput(String),
     PopChar,
     ClickBackround,
     TabPress,
