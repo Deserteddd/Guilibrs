@@ -18,6 +18,7 @@ impl EventHandler {
             lmb_down: (false, 0, 0),
         })
     }
+
     pub fn poll(&mut self, bounds: &[Rect]) -> HandlerEvent {
         match self.pump.wait_event() {
             Event::Quit { .. } => HandlerEvent::Quit,
@@ -27,30 +28,23 @@ impl EventHandler {
                 self.parse_keycode(keycode)
             },
             Event::MouseMotion { x, y, .. } => {
-                let mut hover_instruction: Option<HandlerEvent> = None;
                 if let Some(idx) = self.hovered {
+                    if self.lmb_down.0 {
+                        return HandlerEvent::Drag(idx, x, y)
+                    }
                     if !in_bounds(&bounds[idx], x, y) {
-                        hover_instruction = Some(HandlerEvent::UnHover(idx))
+                        self.hovered = None;
+                        return HandlerEvent::UnHover(idx)
                     }
                 } else {
                     for (idx, b) in bounds.iter().enumerate() {
                         if in_bounds(b, x, y) {
-                            hover_instruction = Some(HandlerEvent::Hover(idx));
+                            self.hovered = Some(idx);
+                            return HandlerEvent::Hover(idx);
                         }
                     }
                 }
-                match hover_instruction {
-                    Some(HandlerEvent::Hover(idx)) => {
-                        self.hovered = Some(idx);
-                        HandlerEvent::Hover(idx)
-                    }
-                    Some(HandlerEvent::UnHover(idx)) => {
-                        self.hovered = None;
-                        HandlerEvent::UnHover(idx)
-                    }
-                    Some(_) => HandlerEvent::None,
-                    None => HandlerEvent::None,
-                }
+                HandlerEvent::None
             },
             Event::MouseButtonDown { mouse_btn, x, y, .. } => {
                 if mouse_btn == MouseButton::Left {
@@ -73,7 +67,7 @@ impl EventHandler {
         }
     }
 
-    fn parse_keycode(&self, kc: Option<Keycode>) -> HandlerEvent {
+    const fn parse_keycode(&self, kc: Option<Keycode>) -> HandlerEvent {
         if let Some(keycode) = kc {
             return match keycode {
                 Keycode::Backspace => HandlerEvent::PopChar,
@@ -94,6 +88,7 @@ pub enum HandlerEvent {
     Hover(usize),
     UnHover(usize),
     Click(usize),
+    Drag(usize, i32, i32),
     Escape,
     Return,
     TextInput(String),

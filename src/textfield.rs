@@ -27,6 +27,7 @@ pub struct TextField {
     is_active: bool,
     clickable: bool,
     text_align: TextAlign,
+    password: bool,
 }
 
 impl TextField {
@@ -39,10 +40,15 @@ impl TextField {
             is_active: false,
             clickable: false,
             text_align: TextAlign::Left,
+            password: false,
         }
     }
     pub const fn get_label(&self) -> &str {
         self.label
+    }
+    pub const fn password(mut self) -> TextField {
+        self.password = true;
+        self
     }
     pub const fn label(mut self, s: &'static str) -> TextField {
         self.label = s;
@@ -52,15 +58,22 @@ impl TextField {
         self.clickable = true;
         self
     }
-    pub const fn is_active(&self) -> bool {
-        self.is_active
+    pub const fn font_size(mut self, size: u16) -> TextField {
+        self.font_size = size;
+        self
     }
     pub const fn align(mut self, align: TextAlign) -> TextField {
         self.text_align = align;
         self
     }
+    pub const fn is_active(&self) -> bool {
+        self.is_active
+    }
     pub const fn rect(&self) -> Rect {
         self.rect
+    }
+    pub const fn is_password(&self) -> bool {
+        self.password
     }
     pub const fn is_clickable(&self) -> bool {
         self.clickable
@@ -87,7 +100,7 @@ impl TextField {
 
 impl std::fmt::Display for TextField {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "TextField: {}", self.content)
+        write!(f, "{}: {}", self.label, self.content)
     }
 }
 
@@ -111,13 +124,16 @@ impl RenderText for TextField {
         font_path: &'static str,
     ) -> Result<(), String> {
         let texture_creator = canvas.texture_creator();
+        let secret_text = "*".repeat(self.content.len());
         if !self.content.is_empty() {
             let mut font = ttf.load_font(font_path, self.font_size)?;
             font.set_style(sdl2::ttf::FontStyle::NORMAL);
             canvas.set_clip_rect(Some(self.rect));
-            // Content
             let surface = font
-                .render(&self.content)
+                .render(match self.password {
+                    true => &secret_text,
+                    false => &self.content,
+                })
                 .blended(Color::RGB(0, 0, 0))
                 .map_err(|e| e.to_string())?;
             let content_tex = texture_creator
@@ -152,7 +168,7 @@ impl RenderText for TextField {
         canvas.set_clip_rect(None);
         // Label
         if !self.label.is_empty() {
-            let mut font = ttf.load_font(font_path, self.font_size/2)?;
+            let mut font = ttf.load_font(font_path, 12)?;
             font.set_style(sdl2::ttf::FontStyle::NORMAL);
 
             let surface = font

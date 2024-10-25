@@ -1,4 +1,5 @@
 use crate::handler::{EventHandler, HandlerEvent};
+use crate::slider::Slider;
 use crate::textfield::TextField;
 use crate::button::Button;
 
@@ -24,7 +25,30 @@ const BACKROUNDCOLOR: Color = Color::RGB(40, 40, 40);
 pub enum GuiEvent<T> {
     Quit,
     Callback(T),
+    NewSliderValue(usize, f32),
     None
+}
+
+pub struct Panel<T> 
+where
+    T: Copy,
+{
+    buttons: Vec<Button<T>>,
+    textfields: Vec<TextField>,
+    sliders: Vec<Slider>,
+}
+
+impl<T> Panel<T> 
+where 
+    T: Copy,
+{
+    pub fn new(
+        buttons: Vec<Button<T>>,
+        textfields: Vec<TextField>,
+        sliders: Vec<Slider>
+    ) -> Panel<T> {
+        Panel { buttons, textfields, sliders }
+    }
 }
 
 pub struct GUI<T>
@@ -36,7 +60,8 @@ where
     canvas: Canvas<Window>,
     handler: EventHandler,
     buttons: Vec<Button<T>>,
-    textboxes: Vec<TextField>,
+    textfields: Vec<TextField>,
+    sliders: Vec<Slider>
 }
 impl<T> GUI<T>
 where
@@ -47,18 +72,22 @@ where
         GuiBuilder::new()
     }
 
+
     pub fn poll(&mut self) -> GuiEvent<T> {
         let event = self.handler.poll(&Self::get_bounds(&self));
+        if event != HandlerEvent::None {
+            // println!("{:?}", event);
+        }
         match event {
             HandlerEvent::None => GuiEvent::None,
             HandlerEvent::Quit { .. } => GuiEvent::Quit,
             HandlerEvent::Escape => GuiEvent::Quit,
             HandlerEvent::Return => {
-                self.deselect_textboxes();
+                self.deselect_textfields();
                 GuiEvent::None
             },
             HandlerEvent::TextInput(text) => {
-                self.textboxes.iter_mut().for_each(|tb| {
+                self.textfields.iter_mut().for_each(|tb| {
                     if tb.is_active() {
                         tb.push(text.clone())
                     }
@@ -66,7 +95,7 @@ where
                 GuiEvent::None
             },
             HandlerEvent::PopChar => {
-                self.textboxes.iter_mut().for_each(|tb| {
+                self.textfields.iter_mut().for_each(|tb| {
                     if tb.is_active() {
                         tb.pop_char();
                     }
@@ -87,28 +116,53 @@ where
                 }
                 GuiEvent::None
             },
+            HandlerEvent::Drag(u, x, ..) => {
+                match self.which_widget(u) {
+                    (WidgetType::Slider, idx) => {
+                        self.sliders[idx].drag(x);
+                        return GuiEvent::NewSliderValue(idx, self.get_slider_value(idx));
+                    },
+                    _ => GuiEvent::None
+                }
+            }
             HandlerEvent::Click(u) => {
-                self.deselect_textboxes();
+                self.deselect_textfields();
                 match self.which_widget(u) {
                     (WidgetType::Button, idx) => {
                         return GuiEvent::Callback(self.buttons[idx].click());
-                    }
+                    },
                     (WidgetType::TextField, idx) => {
-                        if self.textboxes[idx].is_clickable() {
-                            self.textboxes[idx].set_active(true);
+                        if self.textfields[idx].is_clickable() {
+                            self.textfields[idx].set_active(true);
                         }
-                    }
+                    },
+                    _ => {}
                 }
                 GuiEvent::None
             },
             HandlerEvent::ClickBackround => {
-                self.deselect_textboxes();
+                self.deselect_textfields();
                 GuiEvent::None
             }
             HandlerEvent::TabPress => {
                 self.switch_active_textbox();
                 GuiEvent::None
             }
+        }
+    }
+
+    pub fn swap_panel(&mut self, panel: Panel<T>) -> Panel<T> {
+        self.textfields.iter_mut()
+            .filter(|tf| tf.is_password())
+            .for_each(|tf| tf.clear());
+
+        let old_buttons = std::mem::replace(&mut self.buttons, panel.buttons);
+        let old_textfields = std::mem::replace(&mut self.textfields, panel.textfields);
+        let old_sliders = std::mem::replace(&mut self.sliders, panel.sliders);
+        Panel {
+            buttons: old_buttons,
+            textfields: old_textfields,
+            sliders: old_sliders,
         }
     }
 
@@ -119,9 +173,12 @@ where
             btn.render(&mut self.canvas)?;
             btn.render_text(&self.ttf_context, &mut self.canvas, self.font)?;
         }
-        for tb in self.textboxes.iter() {
+        for tb in self.textfields.iter() {
             tb.render(&mut self.canvas)?;
             tb.render_text(&self.ttf_context, &mut self.canvas, self.font)?;
+        }
+        for sl in self.sliders.iter() {
+            sl.render(&mut self.canvas)?;
         }
 
         self.canvas.present();
@@ -129,44 +186,51 @@ where
     }
 
     pub fn textfields(&self) -> std::slice::Iter<TextField> {
-        self.textboxes.iter()
+        self.textfields.iter()
     }
 
     pub fn textfields_mut(&mut self) -> std::slice::IterMut<TextField> {
-        self.textboxes.iter_mut()
+        self.textfields.iter_mut()
     }
 
 
     pub fn get_input(&self, idx: usize) -> String {
-        if idx >= self.textboxes.len() {
+        if idx >= self.textfields.len() {
             panic!("get_input: Invalid textbox index")
         };
-        self.textboxes[idx].to_string()
+        self.textfields[idx].to_string()
     }
 
     pub fn set_textbox_content(&mut self, idx: usize, content: String) {
-        if idx >= self.textboxes.len() {
+        if idx >= self.textfields.len() {
             return;
         };
-        if let Some(textbox) = self.textboxes.iter_mut().nth(idx) {
+        if let Some(textbox) = self.textfields.iter_mut().nth(idx) {
             textbox.set_content(content);
         }
     }
 
     pub fn push_to_textbox(&mut self, idx: usize, c: char) {
-        self.textboxes[idx].push(c.to_string());
+        self.textfields[idx].push(c.to_string());
     }
 
     pub fn pop_from_textbox(&mut self, idx: usize) -> Option<char> {
-        self.textboxes[idx].pop_char()
+        self.textfields[idx].pop_char()
     }
 
     pub fn clear_textbox(&mut self, idx: usize) {
-        self.textboxes[idx].clear();
+        self.textfields[idx].clear();
+    }
+
+    fn get_slider_value(&self, idx: usize) -> f32 {
+        if idx >= self.sliders.len() {
+            panic!("get_slider_value: Invalid slider index: {}, len: {}", idx, self.sliders.len())
+        };
+        self.sliders[idx].value()
     }
 
     fn switch_active_textbox(&mut self) {
-        let first_clickable = self.textboxes
+        let first_clickable = self.textfields
             .iter()
             .position(|tb| tb.is_clickable());
 
@@ -175,17 +239,17 @@ where
         }
         let first_clickable = first_clickable.unwrap();
 
-        let active = self.textboxes
+        let active = self.textfields
             .iter()
             .position(|tb| tb.is_active());
 
         if active.is_none() {
-            self.textboxes[first_clickable].set_active(true);
+            self.textfields[first_clickable].set_active(true);
             return
         }
         let active = active.unwrap();
 
-        let mut next_clickable = self.textboxes
+        let mut next_clickable = self.textfields
             .iter()
             .enumerate()
             .skip(active+1)
@@ -193,13 +257,13 @@ where
             .map(|(idx, _)| idx);
 
         if next_clickable.is_none() {
-            next_clickable = self.textboxes
+            next_clickable = self.textfields
                 .iter()
                 .position(|tb| tb.is_clickable());
         }
 
-        self.textboxes[active].set_active(false);
-        self.textboxes[next_clickable.unwrap()].set_active(true);
+        self.textfields[active].set_active(false);
+        self.textfields[next_clickable.unwrap()].set_active(true);
     }
 
     fn get_bounds(&self) -> Vec<Rect> {
@@ -208,53 +272,44 @@ where
             .iter()
             .map(|button| button.bounds())
             .collect::<Vec<Rect>>();
-        bounds.append(
-            &mut self
-                .textboxes
-                .iter()
-                .map(|textbox| textbox.rect())
-                .collect::<Vec<Rect>>(),
-        );
-        assert_eq!(bounds.len(), self.buttons.len() + self.textboxes.len());
+        
+        self.textfields
+            .iter()
+            .for_each(|textbox| bounds.push(textbox.rect()));
+
+        self.sliders
+            .iter()
+            .for_each(|slider| bounds.push(slider.bounds()));
+        
+        assert_eq!(bounds.len(), self.buttons.len() + self.textfields.len() + self.sliders.len());
         bounds
     }
 
     fn which_widget(&self, idx: usize) -> (WidgetType, usize) {
         let buttons = self.buttons.len();
-        let textboxes = self.textboxes.len();
-        if buttons + textboxes == 0 {
+        let textfields = self.textfields.len();
+        let sliders = self.sliders.len();
+        if buttons + textfields + sliders == 0 {
             panic!("GUI::which_widget() called when program doesn't contain any")
         };
         if idx < buttons && buttons > 0 {
             (WidgetType::Button, idx)
-        } else if idx - buttons < textboxes {
+        } else if idx - buttons < textfields {
             (WidgetType::TextField, idx - buttons)
         } else {
-            panic!()
+            (WidgetType::Slider, idx - buttons - textfields)
         }
     }
 
-    fn deselect_textboxes(&mut self) {
-        self.textboxes.iter_mut().for_each(|tb| {
+    fn deselect_textfields(&mut self) {
+        self.textfields.iter_mut().for_each(|tb| {
             tb.set_active(false);
         })
     }
 }
 
-impl<T> Render for GUI<T> where T: Copy {
-    fn render(&self, canvas: &mut Canvas<Window>) -> Result<(), String> {
-        for i in self.buttons.iter() {
-            i.render(canvas)?;
-        }
-        for i in self.textboxes.iter() {
-            i.render(canvas)?;
-        }
-        Ok(())
-    }
-}
-
 // GuiBuilder
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct GuiBuilder<T>
 where
     T: Copy,
@@ -263,28 +318,30 @@ where
     backround_color: Color,
     window_title: &'static str,
     buttons: Vec<Button<T>>,
-    textboxes: Vec<TextField>,
+    textfields: Vec<TextField>,
+    sliders: Vec<Slider>,
     font: &'static str,
 }
 impl<T> GuiBuilder<T>
 where
     T: Copy,
 {
-    pub fn new() -> GuiBuilder<T> {
+    pub const fn new() -> GuiBuilder<T> {
         GuiBuilder {
             window_size: (800, 600),
             backround_color: BACKROUNDCOLOR,
             window_title: "",
             buttons: vec![],
-            textboxes: vec![],
+            textfields: vec![],
+            sliders: vec![],
             font: DEFAULTFONT,
         }
     }
-    pub fn color_rgb(mut self, r: u8, g: u8, b: u8) -> GuiBuilder<T> {
+    pub const fn color_rgb(mut self, r: u8, g: u8, b: u8) -> GuiBuilder<T> {
         self.backround_color = Color::RGB(r, g, b);
         self
     }
-    pub fn title(mut self, s: &'static str) -> GuiBuilder<T> {
+    pub const fn title(mut self, s: &'static str) -> GuiBuilder<T> {
         self.window_title = s;
         self
     }
@@ -293,16 +350,26 @@ where
         self
     }
     pub fn textfields(mut self, tb: Vec<TextField>) -> GuiBuilder<T> {
-        self.textboxes = tb;
+        self.textfields = tb;
         self
     }
-    pub fn font(mut self, s: &'static str) -> GuiBuilder<T> {
+    pub fn sliders(mut self, sliders: Vec<Slider>) -> GuiBuilder<T> {
+        self.sliders = sliders;
+        self
+    }
+    pub const fn font(mut self, s: &'static str) -> GuiBuilder<T> {
         self.font = s;
         self
     }
-    pub fn size(mut self, w: u32, h: u32) -> GuiBuilder<T> {
+    pub const fn size(mut self, w: u32, h: u32) -> GuiBuilder<T> {
         self.window_size.0 = w;
         self.window_size.1 = h;
+        self
+    }
+    pub fn panel(mut self, panel: Panel<T>) -> GuiBuilder<T> {
+        self.buttons = panel.buttons;
+        self.textfields = panel.textfields;
+        self.sliders = panel.sliders;
         self
     }
     pub fn build(self) -> Result<GUI<T>, String> {
@@ -323,7 +390,8 @@ where
             canvas,
             handler: EventHandler::new(&sdl_context)?,
             buttons: self.buttons,
-            textboxes: self.textboxes,
+            textfields: self.textfields,
+            sliders: self.sliders,
         });
     }
 }

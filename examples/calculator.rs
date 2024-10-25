@@ -6,7 +6,7 @@ use guilibrs::gui::{GuiEvent, GUI};
 
 #[derive(Clone, Copy, Default)]
 enum Callback {
-    Num(u8),
+    Num(char),
     Equals,
     #[default]
     Clear,
@@ -34,6 +34,7 @@ fn main() -> Result<(), String> {
                     calc.set_textbox_content(0, evaluate(calc.textfields().nth(0).unwrap()))
                 }
             },
+            _ => {}
         }
         calc.draw()?;
     }
@@ -66,7 +67,7 @@ fn setup() -> Result<GUI<Callback>, String> {
                     .callback(match button {
                         "=" => Callback::Equals,
                         "c" => Callback::Clear,
-                        _ => Callback::Num(button.chars().next().unwrap() as u8),
+                        _ => Callback::Num(button.chars().next().unwrap()),
                     })
             )
         }

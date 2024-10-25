@@ -2,6 +2,7 @@ mod handler;
 pub mod gui;
 pub mod textfield;
 pub mod button;
+pub mod slider;
 use sdl2::render::Canvas;
 use sdl2::ttf::Sdl2TtfContext;
 use sdl2::video::Window;
@@ -10,6 +11,7 @@ use sdl2::video::Window;
 enum WidgetType {
     Button,
     TextField,
+    Slider
 }
 
 pub trait Render {

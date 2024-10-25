@@ -46,23 +46,27 @@ where
     pub const fn click(&self) -> T {
         self.callback
     }
-    pub fn label(mut self, s: &'static str) -> Button<T> {
+    pub const fn font_size(mut self, size: u16) -> Button<T> {
+        self.font_size = size;
+        self
+    }
+    pub const fn label(mut self, s: &'static str) -> Button<T> {
         self.label = s;
         self
     }
-    pub fn color_rgb(mut self, r: u8, g: u8, b: u8) -> Button<T> {
+    pub const fn color_rgb(mut self, r: u8, g: u8, b: u8) -> Button<T> {
         self.color = Color::RGB(r, g, b);
         self
     }
-    pub fn callback(mut self, cb: T) -> Button<T> {
+    pub const fn callback(mut self, cb: T) -> Button<T> {
         self.callback = cb;
         self
     }
-    pub fn is_hovered(&mut self, b: bool) {
-        self.is_hovered = b;
-    }
     pub const fn bounds(&self) -> Rect {
         self.rect
+    }
+    pub fn is_hovered(&mut self, b: bool) {
+        self.is_hovered = b;
     }
 }
 
@@ -82,10 +86,12 @@ where
                     255)
             },
         });
+
         canvas.fill_rect(self.rect)?;
         Ok(())
     }
 }
+
 impl<T> RenderText for Button<T>
 where
     T: Copy,
@@ -97,7 +103,7 @@ where
         font: &'static str,
     ) -> Result<(), String> {
         let texture_creator = canvas.texture_creator();
-        let mut font = ttf.load_font(font, 24)?;
+        let mut font = ttf.load_font(font, self.font_size)?;
         font.set_style(sdl2::ttf::FontStyle::NORMAL);
         let surface = font
             .render(&self.label)
