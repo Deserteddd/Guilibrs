@@ -1,4 +1,4 @@
-use crate::{Render, RenderText};
+use crate::{Render, RenderText, TextAlign};
 use sdl2::pixels::Color;
 use sdl2::rect::Rect;
 use sdl2::render::{Canvas, TextureQuery};
@@ -11,13 +11,6 @@ macro_rules! rect(
   )
 );
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TextAlign {
-    Left,
-    Center,
-    Right,
-}
-
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TextField {
     rect: Rect,
@@ -26,6 +19,7 @@ pub struct TextField {
     content: String,
     is_active: bool,
     clickable: bool,
+    transparent: bool,
     text_align: TextAlign,
     password: bool,
 }
@@ -39,7 +33,8 @@ impl TextField {
             content: String::new(),
             is_active: false,
             clickable: false,
-            text_align: TextAlign::Left,
+            transparent: false,
+            text_align: TextAlign::Left(5),
             password: false,
         }
     }
@@ -64,6 +59,10 @@ impl TextField {
     }
     pub const fn align(mut self, align: TextAlign) -> TextField {
         self.text_align = align;
+        self
+    }
+    pub const fn transparent(mut self) -> TextField {
+        self.transparent = true;
         self
     }
     pub const fn is_active(&self) -> bool {
@@ -106,6 +105,9 @@ impl std::fmt::Display for TextField {
 
 impl Render for TextField {
     fn render(&self, canvas: &mut Canvas<Window>) -> Result<(), String> {
+        if self.transparent {
+            return Ok(())
+        }
         canvas.set_draw_color(Color::RGB(200, 200, 200));
         canvas.fill_rect(self.rect)?;
         if self.is_active {
@@ -144,20 +146,20 @@ impl RenderText for TextField {
                 &content_tex,
                 None,
                 match self.text_align {
-                    TextAlign::Center => rect!(
-                        self.rect.x + self.rect.w / 2 - width as i32 / 2,
-                        self.rect.y + self.rect.h / 2 - height as i32 / 2,
-                        width,
-                        height
-                    ),
-                    TextAlign::Left => rect!(
-                        self.rect.x, 
+                    TextAlign::Left(n) => rect!(
+                        self.rect.x + n, 
                         self.rect.y + self.rect.h / 2 - height as i32 / 2,
                         width, 
                         height
                     ),
-                    TextAlign::Right => rect!(
-                        self.rect.x + self.rect.w - width as i32,
+                    TextAlign::Right(n) => rect!(
+                        self.rect.x + self.rect.w - width as i32 - n,
+                        self.rect.y + self.rect.h / 2 - height as i32 / 2,
+                        width,
+                        height
+                    ),
+                    TextAlign::Center => rect!(
+                        self.rect.x + self.rect.w / 2 - width as i32 / 2,
                         self.rect.y + self.rect.h / 2 - height as i32 / 2,
                         width,
                         height
@@ -167,7 +169,7 @@ impl RenderText for TextField {
         }
         canvas.set_clip_rect(None);
         // Label
-        if !self.label.is_empty() {
+        if !self.label.is_empty() && !self.transparent {
             let mut font = ttf.load_font(font_path, 12)?;
             font.set_style(sdl2::ttf::FontStyle::NORMAL);
 

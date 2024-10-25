@@ -1,11 +1,8 @@
 use crate::handler::{EventHandler, HandlerEvent};
-use crate::slider::Slider;
-use crate::textfield::TextField;
-use crate::button::Button;
 
-use crate::WidgetType;
-use crate::Render;
-use crate::RenderText;
+use crate::{GuiEvent, BACKROUNDCOLOR};
+use crate::panel::Panel;
+use crate::widgets::{Button, Fader, TextField, WidgetType};
 
 use sdl2::pixels::Color;
 use sdl2::rect::Rect;
@@ -19,49 +16,15 @@ macro_rules! _rect(
   )
 );
 
-const DEFAULTFONT: &'static str = "./Courier_Prime.ttf";
-const BACKROUNDCOLOR: Color = Color::RGB(40, 40, 40);
-
-pub enum GuiEvent<T> {
-    Quit,
-    Callback(T),
-    NewSliderValue(usize, f32),
-    None
-}
-
-pub struct Panel<T> 
-where
-    T: Copy,
-{
-    buttons: Vec<Button<T>>,
-    textfields: Vec<TextField>,
-    sliders: Vec<Slider>,
-}
-
-impl<T> Panel<T> 
-where 
-    T: Copy,
-{
-    pub fn new(
-        buttons: Vec<Button<T>>,
-        textfields: Vec<TextField>,
-        sliders: Vec<Slider>
-    ) -> Panel<T> {
-        Panel { buttons, textfields, sliders }
-    }
-}
-
 pub struct GUI<T>
 where
     T: Copy,
 {
     ttf_context: Sdl2TtfContext,
-    font: &'static str,
     canvas: Canvas<Window>,
+    backround_color: Color,
     handler: EventHandler,
-    buttons: Vec<Button<T>>,
-    textfields: Vec<TextField>,
-    sliders: Vec<Slider>
+    panel: Panel<T>,
 }
 impl<T> GUI<T>
 where
@@ -87,7 +50,7 @@ where
                 GuiEvent::None
             },
             HandlerEvent::TextInput(text) => {
-                self.textfields.iter_mut().for_each(|tb| {
+                self.panel.textfields.iter_mut().for_each(|tb| {
                     if tb.is_active() {
                         tb.push(text.clone())
                     }
@@ -95,7 +58,7 @@ where
                 GuiEvent::None
             },
             HandlerEvent::PopChar => {
-                self.textfields.iter_mut().for_each(|tb| {
+                self.panel.textfields.iter_mut().for_each(|tb| {
                     if tb.is_active() {
                         tb.pop_char();
                     }
@@ -104,23 +67,25 @@ where
             },
             HandlerEvent::Hover(u) => {
                 match self.which_widget(u) {
-                    (WidgetType::Button, idx) => self.buttons[idx].is_hovered(true),
+                    (WidgetType::Button, idx) => self.panel.buttons[idx].is_hovered(true),
+                    (WidgetType::Fader, idx) => self.panel.faders[idx].is_hovered(true),
                     _ => {}
                 }
                 GuiEvent::None
             },
             HandlerEvent::UnHover(u) => {
                 match self.which_widget(u) {
-                    (WidgetType::Button, idx) => self.buttons[idx].is_hovered(false),
+                    (WidgetType::Button, idx) => self.panel.buttons[idx].is_hovered(false),
+                    (WidgetType::Fader, idx) => self.panel.faders[idx].is_hovered(false),
                     _ => {}
                 }
                 GuiEvent::None
             },
             HandlerEvent::Drag(u, x, ..) => {
                 match self.which_widget(u) {
-                    (WidgetType::Slider, idx) => {
-                        self.sliders[idx].drag(x);
-                        return GuiEvent::NewSliderValue(idx, self.get_slider_value(idx));
+                    (WidgetType::Fader, idx) => {
+                        self.panel.faders[idx].drag(x);
+                        return GuiEvent::FaderUpdate(idx, self.panel.faders[idx].value());
                     },
                     _ => GuiEvent::None
                 }
@@ -129,11 +94,11 @@ where
                 self.deselect_textfields();
                 match self.which_widget(u) {
                     (WidgetType::Button, idx) => {
-                        return GuiEvent::Callback(self.buttons[idx].click());
+                        return GuiEvent::Callback(self.panel.buttons[idx].click());
                     },
                     (WidgetType::TextField, idx) => {
-                        if self.textfields[idx].is_clickable() {
-                            self.textfields[idx].set_active(true);
+                        if self.panel.textfields[idx].is_clickable() {
+                            self.panel.textfields[idx].set_active(true);
                         }
                     },
                     _ => {}
@@ -145,92 +110,80 @@ where
                 GuiEvent::None
             }
             HandlerEvent::TabPress => {
-                self.switch_active_textbox();
+                self.switch_active_textfield();
                 GuiEvent::None
             }
         }
     }
 
     pub fn swap_panel(&mut self, panel: Panel<T>) -> Panel<T> {
-        self.textfields.iter_mut()
+        self.panel.textfields.iter_mut()
             .filter(|tf| tf.is_password())
             .for_each(|tf| tf.clear());
 
-        let old_buttons = std::mem::replace(&mut self.buttons, panel.buttons);
-        let old_textfields = std::mem::replace(&mut self.textfields, panel.textfields);
-        let old_sliders = std::mem::replace(&mut self.sliders, panel.sliders);
+        let old_buttons = std::mem::replace(&mut self.panel.buttons, panel.buttons);
+        let old_textfields = std::mem::replace(&mut self.panel.textfields, panel.textfields);
+        let old_faders = std::mem::replace(&mut self.panel.faders, panel.faders);
         Panel {
             buttons: old_buttons,
             textfields: old_textfields,
-            sliders: old_sliders,
+            faders: old_faders,
+            font: crate::DEFAULTFONT
         }
     }
 
     pub fn draw(&mut self) -> Result<(), String> {
-        self.canvas.set_draw_color(BACKROUNDCOLOR);
+        self.canvas.set_draw_color(self.backround_color);
         self.canvas.clear();
-        for btn in self.buttons.iter() {
-            btn.render(&mut self.canvas)?;
-            btn.render_text(&self.ttf_context, &mut self.canvas, self.font)?;
-        }
-        for tb in self.textfields.iter() {
-            tb.render(&mut self.canvas)?;
-            tb.render_text(&self.ttf_context, &mut self.canvas, self.font)?;
-        }
-        for sl in self.sliders.iter() {
-            sl.render(&mut self.canvas)?;
-        }
+        self.panel.draw(&mut self.canvas, &self.ttf_context)?;
 
         self.canvas.present();
         Ok(())
     }
 
     pub fn textfields(&self) -> std::slice::Iter<TextField> {
-        self.textfields.iter()
+        self.panel.textfields.iter()
     }
 
     pub fn textfields_mut(&mut self) -> std::slice::IterMut<TextField> {
-        self.textfields.iter_mut()
+        self.panel.textfields.iter_mut()
     }
 
 
     pub fn get_input(&self, idx: usize) -> String {
-        if idx >= self.textfields.len() {
-            panic!("get_input: Invalid textbox index")
+        if idx >= self.panel.textfields.len() {
+            panic!("get_input: Invalid textfield index")
         };
-        self.textfields[idx].to_string()
+        self.panel.textfields[idx].to_string()
     }
 
-    pub fn set_textbox_content(&mut self, idx: usize, content: String) {
-        if idx >= self.textfields.len() {
+    pub fn set_backround_color(&mut self, rgb: (u8, u8, u8)) {
+        self.backround_color = Color::RGB(rgb.0, rgb.1, rgb.2);
+    }
+
+    pub fn set_textfield_content(&mut self, idx: usize, content: String) {
+        if idx >= self.panel.textfields.len() {
             return;
         };
-        if let Some(textbox) = self.textfields.iter_mut().nth(idx) {
-            textbox.set_content(content);
+        if let Some(textfield) = self.panel.textfields.iter_mut().nth(idx) {
+            textfield.set_content(content);
         }
     }
 
-    pub fn push_to_textbox(&mut self, idx: usize, c: char) {
-        self.textfields[idx].push(c.to_string());
+    pub fn push_to_textfield(&mut self, idx: usize, c: char) {
+        self.panel.textfields[idx].push(c.to_string());
     }
 
-    pub fn pop_from_textbox(&mut self, idx: usize) -> Option<char> {
-        self.textfields[idx].pop_char()
+    pub fn pop_from_textfield(&mut self, idx: usize) -> Option<char> {
+        self.panel.textfields[idx].pop_char()
     }
 
-    pub fn clear_textbox(&mut self, idx: usize) {
-        self.textfields[idx].clear();
+    pub fn clear_textfield(&mut self, idx: usize) {
+        self.panel.textfields[idx].clear();
     }
 
-    fn get_slider_value(&self, idx: usize) -> f32 {
-        if idx >= self.sliders.len() {
-            panic!("get_slider_value: Invalid slider index: {}, len: {}", idx, self.sliders.len())
-        };
-        self.sliders[idx].value()
-    }
-
-    fn switch_active_textbox(&mut self) {
-        let first_clickable = self.textfields
+    fn switch_active_textfield(&mut self) {
+        let first_clickable = self.panel.textfields
             .iter()
             .position(|tb| tb.is_clickable());
 
@@ -239,17 +192,17 @@ where
         }
         let first_clickable = first_clickable.unwrap();
 
-        let active = self.textfields
+        let active = self.panel.textfields
             .iter()
             .position(|tb| tb.is_active());
 
         if active.is_none() {
-            self.textfields[first_clickable].set_active(true);
+            self.panel.textfields[first_clickable].set_active(true);
             return
         }
         let active = active.unwrap();
 
-        let mut next_clickable = self.textfields
+        let mut next_clickable = self.panel.textfields
             .iter()
             .enumerate()
             .skip(active+1)
@@ -257,39 +210,42 @@ where
             .map(|(idx, _)| idx);
 
         if next_clickable.is_none() {
-            next_clickable = self.textfields
+            next_clickable = self.panel.textfields
                 .iter()
                 .position(|tb| tb.is_clickable());
         }
 
-        self.textfields[active].set_active(false);
-        self.textfields[next_clickable.unwrap()].set_active(true);
+        self.panel.textfields[active].set_active(false);
+        self.panel.textfields[next_clickable.unwrap()].set_active(true);
     }
 
     fn get_bounds(&self) -> Vec<Rect> {
-        let mut bounds = self
+        let mut bounds = self.panel
             .buttons
             .iter()
             .map(|button| button.bounds())
             .collect::<Vec<Rect>>();
         
-        self.textfields
+        self.panel.textfields
             .iter()
-            .for_each(|textbox| bounds.push(textbox.rect()));
+            .for_each(|textfield| bounds.push(textfield.rect()));
 
-        self.sliders
+        self.panel.faders
             .iter()
-            .for_each(|slider| bounds.push(slider.bounds()));
+            .for_each(|fader| bounds.push(fader.bounds()));
         
-        assert_eq!(bounds.len(), self.buttons.len() + self.textfields.len() + self.sliders.len());
+        assert_eq!(
+            bounds.len(),
+            self.panel.buttons.len() + self.panel.textfields.len() + self.panel.faders.len()
+        );
         bounds
     }
 
     fn which_widget(&self, idx: usize) -> (WidgetType, usize) {
-        let buttons = self.buttons.len();
-        let textfields = self.textfields.len();
-        let sliders = self.sliders.len();
-        if buttons + textfields + sliders == 0 {
+        let buttons = self.panel.buttons.len();
+        let textfields = self.panel.textfields.len();
+        let faders = self.panel.faders.len();
+        if buttons + textfields + faders == 0 {
             panic!("GUI::which_widget() called when program doesn't contain any")
         };
         if idx < buttons && buttons > 0 {
@@ -297,12 +253,12 @@ where
         } else if idx - buttons < textfields {
             (WidgetType::TextField, idx - buttons)
         } else {
-            (WidgetType::Slider, idx - buttons - textfields)
+            (WidgetType::Fader, idx - buttons - textfields)
         }
     }
 
     fn deselect_textfields(&mut self) {
-        self.textfields.iter_mut().for_each(|tb| {
+        self.panel.textfields.iter_mut().for_each(|tb| {
             tb.set_active(false);
         })
     }
@@ -317,10 +273,10 @@ where
     window_size: (u32, u32),
     backround_color: Color,
     window_title: &'static str,
+    panel: Panel<T>,
     buttons: Vec<Button<T>>,
     textfields: Vec<TextField>,
-    sliders: Vec<Slider>,
-    font: &'static str,
+    faders: Vec<Fader>,
 }
 impl<T> GuiBuilder<T>
 where
@@ -331,14 +287,14 @@ where
             window_size: (800, 600),
             backround_color: BACKROUNDCOLOR,
             window_title: "",
+            panel: Panel::new(vec![], vec![], vec![]),
             buttons: vec![],
             textfields: vec![],
-            sliders: vec![],
-            font: DEFAULTFONT,
+            faders: vec![],
         }
     }
-    pub const fn color_rgb(mut self, r: u8, g: u8, b: u8) -> GuiBuilder<T> {
-        self.backround_color = Color::RGB(r, g, b);
+    pub const fn color(mut self, rgb: (u8, u8, u8)) -> GuiBuilder<T> {
+        self.backround_color = Color::RGB(rgb.0, rgb.1, rgb.2);
         self
     }
     pub const fn title(mut self, s: &'static str) -> GuiBuilder<T> {
@@ -353,12 +309,8 @@ where
         self.textfields = tb;
         self
     }
-    pub fn sliders(mut self, sliders: Vec<Slider>) -> GuiBuilder<T> {
-        self.sliders = sliders;
-        self
-    }
-    pub const fn font(mut self, s: &'static str) -> GuiBuilder<T> {
-        self.font = s;
+    pub fn faders(mut self, faders: Vec<Fader>) -> GuiBuilder<T> {
+        self.faders = faders;
         self
     }
     pub const fn size(mut self, w: u32, h: u32) -> GuiBuilder<T> {
@@ -367,12 +319,10 @@ where
         self
     }
     pub fn panel(mut self, panel: Panel<T>) -> GuiBuilder<T> {
-        self.buttons = panel.buttons;
-        self.textfields = panel.textfields;
-        self.sliders = panel.sliders;
+        self.panel = panel;
         self
     }
-    pub fn build(self) -> Result<GUI<T>, String> {
+    pub fn build(mut self) -> Result<GUI<T>, String> {
         let sdl_context = sdl2::init()?;
         let ttf_context = sdl2::ttf::init().map_err(|e| e.to_string())?;
         let canvas = sdl_context
@@ -384,14 +334,17 @@ where
             .into_canvas()
             .build()
             .map_err(|e| e.to_string())?;
+
+        if self.panel.is_empty() {
+            self.panel = Panel::new(self.buttons, self.textfields, self.faders);
+        }
+
         return Ok(GUI {
             ttf_context,
-            font: self.font,
             canvas,
+            backround_color: self.backround_color,
             handler: EventHandler::new(&sdl_context)?,
-            buttons: self.buttons,
-            textfields: self.textfields,
-            sliders: self.sliders,
+            panel: self.panel,
         });
     }
 }

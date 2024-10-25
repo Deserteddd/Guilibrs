@@ -1,8 +1,8 @@
 extern crate guilibrs;
 
 use eval::eval;
-use guilibrs::{button::Button, textfield::{TextAlign, TextField}};
-use guilibrs::gui::{GuiEvent, GUI};
+use guilibrs::widgets::{Button, TextField};
+use guilibrs::{GUI, GuiEvent, TextAlign};
 
 #[derive(Clone, Copy, Default)]
 enum Callback {
@@ -28,10 +28,10 @@ fn main() -> Result<(), String> {
             GuiEvent::None => {}
             GuiEvent::Quit => running = false,
             GuiEvent::Callback(cb) => match cb {
-                Callback::Num(c) => calc.push_to_textbox(0, c as char),
-                Callback::Clear => calc.clear_textbox(0),
+                Callback::Num(c) => calc.push_to_textfield(0, c as char),
+                Callback::Clear => calc.clear_textfield(0),
                 Callback::Equals => {
-                    calc.set_textbox_content(0, evaluate(calc.textfields().nth(0).unwrap()))
+                    calc.set_textfield_content(0, evaluate(calc.textfields().nth(0).unwrap()))
                 }
             },
             _ => {}
@@ -78,6 +78,6 @@ fn setup() -> Result<GUI<Callback>, String> {
         .textfields(vec![TextField::new(20, 20, 340, 40).align(TextAlign::Center)])
         .buttons(buttons)
         .size(380, 540)
-        .color_rgb(40, 40, 40)
+        .color((40, 40, 40))
         .build()
 }
