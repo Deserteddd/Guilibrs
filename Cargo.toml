@@ -7,5 +7,6 @@ edition = "2021"
 
 [dependencies]
 eval = "0.4.3"
+hex = "0.4.3"
 num-traits = "0.2.19"
 sdl2 = { version = "0.36.0", features = ["ttf"] }

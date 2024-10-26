@@ -13,7 +13,9 @@ pub struct Fader {
     position: (i32, i32),
     width: i32,
     value: f32,
+    range: (f32, f32),
     is_hovered: bool,
+    display_on_hover: bool,
 }
 
 impl Fader {
@@ -22,8 +24,15 @@ impl Fader {
             position: (x, y),
             width: w,
             value: 0.0,
+            range: (0.0, 1.0),
             is_hovered: false,
+            display_on_hover: false,
         }
+    }
+
+    pub const fn display_on_hover(mut self) -> Fader {
+        self.display_on_hover = true;
+        self
     }
 
     pub fn bounds(&self) -> Rect {
@@ -36,11 +45,19 @@ impl Fader {
         )
     }
 
-    pub const fn value(&self) -> f32 {
-        self.value
+    pub fn initial(mut self, value: f32) -> Fader {
+        self.value = (value - self.range.0) / (self.range.1 - self.range.0);
+        self
     }
 
+    pub fn value(&self) -> f32 {
+        self.range.0 + self.value * (self.range.1 - self.range.0)
+    }
 
+    pub const fn range(mut self, min: f32, max: f32) -> Fader {
+        self.range = (min, max);
+        self
+    }
 
     pub fn drag(&mut self, x: i32) {
         let x = x - self.position.0;
@@ -104,13 +121,13 @@ impl RenderText for Fader {
             font_path: &'static str,
         ) -> Result<(), String> {
         let texture_creator = canvas.texture_creator();
-        if self.is_hovered {
+        if (self.is_hovered && self.display_on_hover) || !self.display_on_hover {
             let mut font = ttf.load_font(font_path, 12)?;
             font.set_style(sdl2::ttf::FontStyle::NORMAL);
 
             let surface = font
-                .render(&format!("{:.2}", self.value))
-                .blended(Color::RGB(200, 200, 200))
+                .render(&format!("{:.2}", self.value()))
+                .solid(Color::RGB(200, 200, 200))
                 .map_err(|e| e.to_string())?;
             let label_tex = texture_creator
                 .create_texture_from_surface(&surface)

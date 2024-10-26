@@ -1,7 +1,7 @@
 extern crate guilibrs;
+use guilibrs::{GUI, GuiEvent, Panel};
+use guilibrs::widgets::{Fader, TextField, Button, TextAlign};
 
-use guilibrs::{GUI, GuiEvent, Panel, TextAlign};
-use guilibrs::widgets::{Fader, TextField, Button};
 
 fn main() -> Result<(), String> {
     let login_screen = Panel::new(
@@ -14,11 +14,12 @@ fn main() -> Result<(), String> {
         vec![
             TextField::new(20, 20, 340, 40)
                 .label("Username")
+                .align(TextAlign::Left(10))
                 .clickable(),
             TextField::new(20, 80, 340, 40)
                 .label("Password")
                 .password()
-                .align(TextAlign::Left(0))
+                .align(TextAlign::Left(10))
                 .clickable()
         ],
         vec![]
@@ -34,26 +35,35 @@ fn main() -> Result<(), String> {
                 .callback(1),
         ],
         vec![
-            TextField::new(90, 20, 200, 40)
-                .label("RGB")
+            TextField::new(70, 20, 280, 40)
                 .transparent()
-                .align(TextAlign::Center)
+                .content(&format_rgb(color))
+                .align(TextAlign::Left(0)),
+            TextField::new(70, 60, 280, 40)
+                .transparent()
+                .content(&format_hex(color))
+                .align(TextAlign::Left(0)),
         ],
         vec![
-            Fader::new(20, 140, 340),
-            Fader::new(20, 200, 340),
+            Fader::new(20, 200, 340)
+                .range(0., 255.)
+                .initial(40.),
             Fader::new(20, 260, 340)
+                .range(0., 255.)
+                .initial(40.),
+            Fader::new(20, 320, 340)
+                .range(0., 255.)
+                .initial(40.)
         ]
     );
-    color_editor.textfields[0].set_content("40, 40, 40".to_string());
 
-
-    let mut gui: GUI<u8> = GUI::new()
+    let mut gui: GUI<u32> = GUI::new()
         .panel(login_screen)
         .title("TextFields")
         .color(color)
         .size(380, 540)
         .build()?;
+
 
     'running: loop {
         match gui.poll() {
@@ -64,22 +74,29 @@ fn main() -> Result<(), String> {
                     gui.textfields().for_each(|tf| println!("{}", tf));
                     color_editor = gui.swap_panel(color_editor); 
                 },
-                2 => println!("Doing stuff..."),
                 _ => {}
             }
             GuiEvent::FaderUpdate(u, f) => {
                 match u {
-                    0 => color.0 = (f * 255.0) as u8,
-                    1 => color.1 = (f * 255.0) as u8,
-                    2 => color.2 = (f * 255.0) as u8,
+                    0 => color.0 = f as u8,
+                    1 => color.1 = f as u8,
+                    2 => color.2 = f as u8,
                     _ => {}
                 };
-                gui.set_textfield_content(0, format!("{}, {}, {}", color.0, color.1, color.2));
+                gui.set_textfield_content(0, format_rgb(color));
+                gui.set_textfield_content(1, format_hex(color));
                 gui.set_backround_color(color);
-                println!("Fader {} moved to {}", u, f);
             }
         }
         gui.draw()?;
     }
     Ok(())
+}
+
+fn format_hex(color: (u8, u8, u8)) -> String {
+    format!("HEX: #{:02x}{:02x}{:02x}", color.0, color.1, color.2)
+}
+
+fn format_rgb(color: (u8, u8, u8)) -> String {
+    format!("RGB: {}, {}, {}", color.0, color.1, color.2)
 }

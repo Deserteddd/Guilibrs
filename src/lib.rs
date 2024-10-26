@@ -13,12 +13,7 @@ pub use crate::panel::Panel;
 const DEFAULTFONT: &'static str = "./Courier_Prime.ttf";
 const BACKROUNDCOLOR: Color = Color::RGB(40, 40, 40);
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TextAlign {
-    Left(i32), // i32: padding
-    Right(i32), // i32: padding
-    Center,
-}
+
 
 pub enum GuiEvent<T> {
     Quit,

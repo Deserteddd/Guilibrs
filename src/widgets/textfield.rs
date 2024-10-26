@@ -1,4 +1,5 @@
-use crate::{Render, RenderText, TextAlign};
+use crate::{Render, RenderText};
+use super::TextAlign;
 use sdl2::pixels::Color;
 use sdl2::rect::Rect;
 use sdl2::render::{Canvas, TextureQuery};
@@ -77,6 +78,10 @@ impl TextField {
     pub const fn is_clickable(&self) -> bool {
         self.clickable
     }
+    pub fn content(mut self, s: &str) -> TextField {
+        self.content = s.to_string();
+        self
+    }
     pub fn push(&mut self, text: String) {
         self.content.push_str(text.as_str())
     }
@@ -105,11 +110,10 @@ impl std::fmt::Display for TextField {
 
 impl Render for TextField {
     fn render(&self, canvas: &mut Canvas<Window>) -> Result<(), String> {
-        if self.transparent {
-            return Ok(())
+        if !self.transparent {
+            canvas.set_draw_color(Color::RGB(200, 200, 200));
+            canvas.fill_rect(self.rect)?;
         }
-        canvas.set_draw_color(Color::RGB(200, 200, 200));
-        canvas.fill_rect(self.rect)?;
         if self.is_active {
             canvas.set_draw_color(Color::RGB(255, 0, 0));
             canvas.draw_rect(self.rect)?;
@@ -166,8 +170,8 @@ impl RenderText for TextField {
                     ),
                 }
             )?;
+            canvas.set_clip_rect(None);
         }
-        canvas.set_clip_rect(None);
         // Label
         if !self.label.is_empty() && !self.transparent {
             let mut font = ttf.load_font(font_path, 12)?;

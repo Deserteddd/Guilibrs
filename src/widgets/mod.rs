@@ -12,3 +12,10 @@ pub enum WidgetType {
     TextField,
     Fader
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TextAlign {
+    Left(i32), // i32: padding
+    Right(i32), // i32: padding
+    Center,
+}
