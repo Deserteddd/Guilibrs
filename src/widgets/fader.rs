@@ -1,4 +1,5 @@
-use crate::{Render, RenderText};
+use crate::{Render, RenderText, DEBUG};
+use super::Widget;
 use sdl2::{pixels::Color, rect::Rect};
 use sdl2::render::TextureQuery;
 
@@ -18,6 +19,15 @@ pub struct Fader {
     display_on_hover: bool,
 }
 
+impl Widget for Fader {
+    fn shift(&mut self, x: i32, y: i32) {
+        self.position = (self.position.0 + x, self.position.1 + y);
+    }
+    fn bounds(&self) -> Rect {
+        rect!(self.position.0, self.position.1 - 10, self.width, 20)
+    }
+}
+
 impl Fader {
     pub fn new(x: i32, y: i32, w: i32) -> Fader {
         Fader {
@@ -35,7 +45,9 @@ impl Fader {
         self
     }
 
-    pub fn bounds(&self) -> Rect {
+
+
+    pub fn rect(&self) -> Rect {
         let lerp = (self.value * self.width as f32) as i32;
         Rect::new(
                 self.position.0 + lerp - 5,
@@ -101,12 +113,7 @@ impl Render for Fader {
         } else {
             canvas.set_draw_color(sdl2::pixels::Color::RGB(200, 225, 150));
         }        
-        canvas.draw_rect(Rect::new(
-            self.position.0 + lerp - 5,
-            self.position.1 - 10,
-            10,
-            20
-        ))?;
+        canvas.draw_rect(self.rect())?;
 
 
         Ok(())

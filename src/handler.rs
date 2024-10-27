@@ -1,12 +1,17 @@
+use std::collections::HashMap;
+
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::mouse::MouseButton;
 use sdl2::rect::Rect;
 use sdl2::{EventPump, Sdl};
 
+use crate::Panel;
+
 pub struct EventHandler {
     pump: EventPump,
     hovered: Option<usize>,
+    active_panel: Option<&'static str>,
     lmb_down: (bool, i32, i32), // (is_down, x, y)
 }
 
@@ -15,11 +20,12 @@ impl EventHandler {
         Ok(EventHandler {
             pump: context.event_pump()?,
             hovered: None,
+            active_panel: None,
             lmb_down: (false, 0, 0),
         })
     }
 
-    pub fn poll(&mut self, bounds: &[Rect]) -> HandlerEvent {
+    pub fn poll<T: Copy + Default>(&mut self, panels: &mut HashMap<&'static str, Panel<T>>) -> HandlerEvent {
         match self.pump.wait_event() {
             Event::Quit { .. } => HandlerEvent::Quit,
             Event::TextInput { text, .. } => HandlerEvent::TextInput(text),
@@ -28,16 +34,30 @@ impl EventHandler {
                 self.parse_keycode(keycode)
             },
             Event::MouseMotion { x, y, .. } => {
+                let panel = panels
+                    .iter()
+                    .find(|panel| in_bounds(&panel.1.bounds, x, y))
+                    .map(|panel| *panel.0);
+
+                if panel != self.active_panel {
+                    self.active_panel = panel;
+                    self.hovered = None;
+                    return HandlerEvent::ActivePanel(panel)
+                }
+                if self.active_panel.is_none() {
+                    return HandlerEvent::None
+                }
+                let active_bounds = panels[self.active_panel.unwrap()].get_bounds();
                 if let Some(idx) = self.hovered {
                     if self.lmb_down.0 {
                         return HandlerEvent::Drag(idx, x, y)
                     }
-                    if !in_bounds(&bounds[idx], x, y) {
+                    if !in_bounds(&active_bounds[idx], x, y) {
                         self.hovered = None;
                         return HandlerEvent::UnHover(idx)
                     }
                 } else {
-                    for (idx, b) in bounds.iter().enumerate() {
+                    for (idx, b) in active_bounds.iter().enumerate() {
                         if in_bounds(b, x, y) {
                             self.hovered = Some(idx);
                             return HandlerEvent::Hover(idx);
@@ -89,6 +109,7 @@ pub enum HandlerEvent {
     UnHover(usize),
     Click(usize),
     Drag(usize, i32, i32),
+    ActivePanel(Option<&'static str>),
     Escape,
     Return,
     TextInput(String),
@@ -99,8 +120,5 @@ pub enum HandlerEvent {
 }
 
 fn in_bounds(rect: &Rect, x: i32, y: i32) -> bool {
-    if x >= rect.x && x <= rect.x + rect.w && y >= rect.y && y <= rect.y + rect.h {
-        return true;
-    }
-    false
+    x >= rect.x && x <= rect.x + rect.w && y >= rect.y && y <= rect.y + rect.h
 }

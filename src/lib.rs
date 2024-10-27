@@ -12,8 +12,7 @@ pub use crate::panel::Panel;
 
 const DEFAULTFONT: &'static str = "./Courier_Prime.ttf";
 const BACKROUNDCOLOR: Color = Color::RGB(40, 40, 40);
-
-
+const DEBUG: bool = false;
 
 pub enum GuiEvent<T> {
     Quit,

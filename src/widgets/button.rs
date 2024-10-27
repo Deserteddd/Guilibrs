@@ -1,4 +1,6 @@
-use crate::{Render, RenderText, };
+
+use crate::{Render, RenderText};
+use super::Widget;
 use sdl2::pixels::Color;
 use sdl2::rect::Rect;
 use sdl2::render::{Canvas, TextureQuery};
@@ -27,6 +29,16 @@ where
     is_pressed: bool,
     is_hovered: bool,
 }
+
+impl<T> Widget for Button<T> where T: Copy {
+    fn shift(&mut self, x: i32, y: i32) {
+        self.rect = rect!(self.rect.x + x, self.rect.y + y, self.rect.w, self.rect.h);
+    }
+    fn bounds(&self) -> Rect {
+        self.rect
+    }
+}
+
 impl<T> Button<T>
 where
     T: Copy,
@@ -61,9 +73,6 @@ where
     pub const fn callback(mut self, cb: T) -> Button<T> {
         self.callback = cb;
         self
-    }
-    pub const fn bounds(&self) -> Rect {
-        self.rect
     }
     pub fn is_hovered(&mut self, b: bool) {
         self.is_hovered = b;

@@ -1,5 +1,5 @@
 use crate::{Render, RenderText};
-use super::TextAlign;
+use super::{TextAlign, Widget};
 use sdl2::pixels::Color;
 use sdl2::rect::Rect;
 use sdl2::render::{Canvas, TextureQuery};
@@ -23,6 +23,27 @@ pub struct TextField {
     transparent: bool,
     text_align: TextAlign,
     password: bool,
+}
+
+impl Widget for TextField {
+    fn shift(&mut self, x: i32, y: i32) {
+        self.rect = rect!(self.rect.x + x, self.rect.y + y, self.rect.w, self.rect.h);
+    }
+    fn bounds(&self) -> Rect {
+        self.rect
+    }
+    fn visual_bounds(&self) -> Rect {
+        if self.label.is_empty() || self.transparent {
+            self.rect
+        } else {
+            rect!(
+                self.rect.x,
+                self.rect.y.saturating_sub(13),
+                self.rect.w,
+                self.rect.h + 13
+            )
+        }
+    }
 }
 
 impl TextField {
@@ -69,9 +90,7 @@ impl TextField {
     pub const fn is_active(&self) -> bool {
         self.is_active
     }
-    pub const fn rect(&self) -> Rect {
-        self.rect
-    }
+
     pub const fn is_password(&self) -> bool {
         self.password
     }
@@ -104,7 +123,7 @@ impl TextField {
 
 impl std::fmt::Display for TextField {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}: {}", self.label, self.content)
+        write!(f, "{}", self.content)
     }
 }
 
