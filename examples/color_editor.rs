@@ -23,7 +23,12 @@ fn main() -> Result<(), String> {
                 .align(TextAlign::Left(10))
                 .clickable()
         ],
-        vec![]
+        vec![
+            Fader::new(40, 400, 280)
+                .vertical()
+                .range(0., 255.)
+                .display_on_hover(),
+        ]
     );
 
     let mut color = (40, 40, 40);
@@ -37,7 +42,7 @@ fn main() -> Result<(), String> {
                 .callback(1),
         ],
         vec![
-            TextField::new(0, 0, 280, 40)
+            TextField::new(50, 0, 280, 40)
                 .transparent()
                 .content(&format_rgb(color))
                 .align(TextAlign::Left(0)),
@@ -71,23 +76,21 @@ fn main() -> Result<(), String> {
         match gui.poll() {
             GuiEvent::None => {}
             GuiEvent::Quit => break 'running,
-            GuiEvent::Callback(u) => match u {
-                1 => { 
-                    gui.textfields().for_each(|tf| println!("{}", tf));
-                },
-                _ => {}
-            }
-            GuiEvent::FaderUpdate(u, f) => {
-                match u {
-                    0 => color.0 = f as u8,
-                    1 => color.1 = f as u8,
-                    2 => color.2 = f as u8,
+            GuiEvent::FaderUpdate(panel, u, f) => {
+                println!("Fader {} on panel {} changed to {}", u, panel, f);
+                match (panel, u) {
+                    ("editor", 0) => color.0 = f as u8,
+                    ("editor", 1) => color.1 = f as u8,
+                    ("editor", 2) => color.2 = f as u8,
                     _ => {}
                 };
                 gui.set_textfield_content("editor", 0, format_rgb(color));
                 gui.set_textfield_content("editor", 1, format_hex(color));
                 gui.set_backround_color(color);
-            }
+            },
+            GuiEvent::Callback(panel, num) => {
+                println!("Clicked button {} on panel {}", num, panel);
+            },
         }
         gui.draw()?;
     }

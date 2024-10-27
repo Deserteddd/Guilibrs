@@ -133,10 +133,17 @@ impl Render for TextField {
             canvas.set_draw_color(Color::RGB(200, 200, 200));
             canvas.fill_rect(self.rect)?;
         }
-        if self.is_active {
+        if unsafe { crate::DEBUG } {
             canvas.set_draw_color(Color::RGB(255, 0, 0));
+            canvas.draw_rect(self.bounds())?;
+            canvas.set_draw_color(Color::RGB(0, 255, 0));
+            canvas.draw_rect(self.visual_bounds())?;
+        }
+        if self.is_active {
+            canvas.set_draw_color(Color::RGB(0, 0, 255));
             canvas.draw_rect(self.rect)?;
         }
+
         Ok(())
     }
 }

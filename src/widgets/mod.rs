@@ -14,6 +14,12 @@ pub enum WidgetType {
     Fader
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Orientation {
+    Horizontal,
+    Vertical
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TextAlign {
     Left(i32), // i32: padding

@@ -134,6 +134,12 @@ where
             ),
         )?;
 
+        if unsafe {crate::DEBUG}{
+            canvas.set_draw_color(Color::RGB(255, 0, 0));
+            canvas.draw_rect(self.bounds())?;
+            canvas.set_draw_color(Color::RGB(0, 255, 0));
+            canvas.draw_rect(self.visual_bounds())?;
+        }
         Ok(())
     }
 }

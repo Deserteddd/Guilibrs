@@ -12,15 +12,14 @@ pub use crate::panel::Panel;
 
 const DEFAULTFONT: &'static str = "./Courier_Prime.ttf";
 const BACKROUNDCOLOR: Color = Color::RGB(40, 40, 40);
-const DEBUG: bool = false;
+static mut DEBUG: bool = false;
 
 pub enum GuiEvent<T> {
     Quit,
-    Callback(T),
-    FaderUpdate(usize, f32),
+    Callback(&'static str, T),
+    FaderUpdate(&'static str, usize, f32),
     None
 }
-
 
 pub trait Render {
     fn render(&self, canvas: &mut Canvas<Window>) -> Result<(), String>;

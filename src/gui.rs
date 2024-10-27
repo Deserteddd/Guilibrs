@@ -28,7 +28,6 @@ where
     backround_color: Color,
     handler: EventHandler,
     panels: HashMap<&'static str, Panel<T>>,
-    active_panel: Option<&'static str>,
 }
 impl<T> GUI<T>
 where
@@ -38,128 +37,97 @@ where
         GuiBuilder::new()
     }
 
-    fn active_panel(&mut self) -> Option<&mut Panel<T>> {
-        self.panels.get_mut(self.active_panel?)
-    }
-
     pub fn poll(&mut self) -> GuiEvent<T> {
         let event = self.handler.poll(&mut self.panels);
-        if event != HandlerEvent::None && DEBUG{
+        if event != HandlerEvent::None && unsafe {DEBUG}{
             println!("{:?}", event);
         }
-
-        // Events that return a GuiEvent which != GuiEvent::None
         match event {
             HandlerEvent::None => return GuiEvent::None,
             HandlerEvent::Quit { .. } => return GuiEvent::Quit,
             HandlerEvent::Escape => return GuiEvent::Quit,
-            HandlerEvent::ActivePanel(panel) => {
-                if let Some(previous) = self.active_panel() {
-                    previous.unhover_buttons();
-                }
-                self.active_panel = panel;
+            HandlerEvent::ToggleDebug => {
+                unsafe { crate::DEBUG = !crate::DEBUG; }
             },
+            HandlerEvent::TextInput(ref text) => {
+                self.panels
+                    .iter_mut()
+                    .for_each(|panel| {
+                        panel.1.push_to_active_textfields(text);
+                    });
+            },
+            HandlerEvent::ClickBackround => {
+                self.deselect_textfields();
+            },
+            HandlerEvent::PopChar => {
+                self.pop_active_textfield();
+            },
+            HandlerEvent::Hover(widget) => {
+                match widget.1 {
+                    WidgetType::Button => self.panels
+                        .get_mut(widget.0)
+                        .unwrap()
+                        .buttons[widget.2]
+                        .is_hovered(true),
+                    WidgetType::Fader => self.panels
+                        .get_mut(widget.0)
+                        .unwrap()
+                        .faders[widget.2]
+                        .is_hovered(true),
+                    _ => {}
+                };
+            },
+            HandlerEvent::UnHover(widget) => {
+                match widget.1 {
+                    WidgetType::Button => self.panels
+                        .get_mut(widget.0)
+                        .unwrap()
+                        .buttons[widget.2]
+                        .is_hovered(false),
+                    WidgetType::Fader => self.panels
+                        .get_mut(widget.0)
+                        .unwrap()
+                        .faders[widget.2]
+                        .is_hovered(false),
+                    _ => {}
+                }
+            },
+            HandlerEvent::Drag(widget, x, y) => {
+                match widget.1 {
+                    WidgetType::Fader => {
+                        self.panels
+                            .get_mut(widget.0)
+                            .unwrap()
+                            .faders[widget.2]
+                            .drag(x, y);
 
-            _ => {}
-        }
-        if let Some(active) = self.active_panel {
-            match event {
-                HandlerEvent::TextInput(text) => {
-                    self.panels
-                        .get_mut(active)
-                        .unwrap()
-                        .textfields
-                        .iter_mut()
-                        .for_each(|tb| {
-                            if tb.is_active() {
-                                tb.push(text.clone())
-                            }
-                        });
-                },
-                HandlerEvent::PopChar => {
-                    self.panels
-                        .get_mut(active)
-                        .unwrap()
-                        .textfields
-                        .iter_mut()
-                        .for_each(|tb| {
-                            if tb.is_active() {
-                                tb.pop_char();
-                            }
-                        });
-                },
-                HandlerEvent::Hover(u) => {
-                    match self.which_widget(u) {
-                        (WidgetType::Button, idx) => self.panels
-                            .get_mut(active)
-                            .unwrap()
-                            .buttons[idx]
-                            .is_hovered(true),
-                        (WidgetType::Fader, idx) => self.panels
-                            .get_mut(active)
-                            .unwrap()
-                            .faders[idx]
-                            .is_hovered(true),
-                        _ => {}
-                    }
-                },
-                HandlerEvent::UnHover(u) => {
-                    match self.which_widget(u) {
-                        (WidgetType::Button, idx) => self.panels
-                            .get_mut(active)
-                            .unwrap()
-                            .buttons[idx]
-                            .is_hovered(false),
-                        (WidgetType::Fader, idx) => self.panels
-                            .get_mut(active)
-                            .unwrap()
-                            .faders[idx]
-                            .is_hovered(false),
-                        _ => {}
-                    }
-                },
-                HandlerEvent::Drag(u, x, ..) => {
-                    match self.which_widget(u) {
-                        (WidgetType::Fader, idx) => {
-                            self.panels
-                                .get_mut(active)
-                                .unwrap()
-                                .faders[idx]
-                                .drag(x);
-                            return GuiEvent::FaderUpdate(idx, self.panels[active].faders[idx].value());
-                        },
-                        _ => {}
-                    }
+                        return GuiEvent::FaderUpdate(widget.0, widget.2, self.panels[widget.0].faders[widget.2].value());
+                    },
+                    _ => {}
                 }
-                HandlerEvent::Click(u) => {
-                    self.deselect_textfields();
-                    match self.which_widget(u) {
-                        (WidgetType::Button, idx) => {
-                            return GuiEvent::Callback(self.panels[active].buttons[idx].click());
-                        },
-                        (WidgetType::TextField, idx) => {
-                            if self.panels[active].textfields[idx].is_clickable() {
-                                self.panels.get_mut(active).unwrap().textfields[idx].set_active(true);
-                            }
-                        },
-                        _ => {}
-                    }
-                },
-                HandlerEvent::Return => {
-                    self.deselect_textfields();
-                },
-                HandlerEvent::ClickBackround => {
-                    self.deselect_textfields();
+            },
+            HandlerEvent::Click(widget) => {
+                self.deselect_textfields();
+                match widget.1 {
+                    WidgetType::Button => {
+                        return GuiEvent::Callback(widget.0, self.panels[widget.0].buttons[widget.2].click());
+                    },
+                    WidgetType::TextField => {
+                        if self.panels[widget.0].textfields[widget.2].is_clickable() {
+                            self.panels.get_mut(widget.0).unwrap().textfields[widget.2].set_active(true);
+                        }
+                    },
+                    _ => {}
                 }
-                // HandlerEvent::TabPress => {
-                //     self.panels.get_mut(active).unwrap().textfields[idx].set_active(true);
-                //     self.switch_active_textfield();
-                // }
-                _ => {}
+            },
+            HandlerEvent::Return => {
+                self.deselect_textfields();
+            },
+            HandlerEvent::TabPress => {
+                self.deselect_textfields();
             }
         }
         GuiEvent::None
-
     }
 
     pub fn draw(&mut self) -> Result<(), String> {
@@ -173,14 +141,9 @@ where
         Ok(())
     }
 
-    pub fn textfields(&self) -> std::slice::Iter<TextField> {
-        self.panels[self.active_panel.unwrap_or("default")].textfields.iter()
+    pub fn textfields(&self, panel: &'static str) -> std::slice::Iter<TextField> {
+        self.panels[panel].textfields.iter()
     }
-
-    // pub fn textfields_mut(&mut self) -> std::slice::IterMut<TextField> {
-    //     self.panel.textfields.iter_mut()
-    // }
-
 
     pub fn set_backround_color(&mut self, rgb: (u8, u8, u8)) {
         self.backround_color = Color::RGB(rgb.0, rgb.1, rgb.2);
@@ -191,6 +154,16 @@ where
             .get_mut(panel)
             .expect(&format!("Panel '{}' doesn't exist", panel))
             .set_textfield_content(idx, content);
+    }
+
+    pub fn pop_active_textfield(&mut self) {
+        self.panels.iter_mut().for_each(|panel|
+            panel.1.textfields.iter_mut().for_each(|tb| {
+                if tb.is_active() {
+                    tb.pop_char();
+                }
+            })
+        );
     }
 
     pub fn push_to_textfield(&mut self, panel: &'static str, idx: usize, c: char) {
@@ -216,61 +189,6 @@ where
 
     pub fn panel_bounds(&self) -> Vec<Rect> {
         self.panels.values().map(|panel| panel.bounds).collect()
-    }
-
-    // fn switch_active_textfield(&mut self) {
-    //     let first_clickable = self.panel.textfields
-    //         .iter()
-    //         .position(|tb| tb.is_clickable());
-
-    //     if first_clickable.is_none() {
-    //         return
-    //     }
-    //     let first_clickable = first_clickable.unwrap();
-
-    //     let active = self.panel.textfields
-    //         .iter()
-    //         .position(|tb| tb.is_active());
-
-    //     if active.is_none() {
-    //         self.panel.textfields[first_clickable].set_active(true);
-    //         return
-    //     }
-    //     let active = active.unwrap();
-
-    //     let mut next_clickable = self.panel.textfields
-    //         .iter()
-    //         .enumerate()
-    //         .skip(active+1)
-    //         .find(|(_, tb)| tb.is_clickable())
-    //         .map(|(idx, _)| idx);
-
-    //     if next_clickable.is_none() {
-    //         next_clickable = self.panel.textfields
-    //             .iter()
-    //             .position(|tb| tb.is_clickable());
-    //     }
-
-    //     self.panel.textfields[active].set_active(false);
-    //     self.panel.textfields[next_clickable.unwrap()].set_active(true);
-    // }
-
-
-    fn which_widget(&self, idx: usize) -> (WidgetType, usize) {
-        let active = self.active_panel.expect("GUI::which_widget called while no panel active");
-        let buttons = self.panels[active].buttons.len();
-        let textfields = self.panels[active].textfields.len();
-        let faders = self.panels[active].faders.len();
-        if buttons + textfields + faders == 0 {
-            panic!("GUI::which_widget() called when program doesn't contain any")
-        };
-        if idx < buttons && buttons > 0 {
-            (WidgetType::Button, idx)
-        } else if idx - buttons < textfields {
-            (WidgetType::TextField, idx - buttons)
-        } else {
-            (WidgetType::Fader, idx - buttons - textfields)
-        }
     }
 
     fn deselect_textfields(&mut self) {
@@ -360,7 +278,6 @@ where
             canvas,
             backround_color: self.backround_color,
             handler: EventHandler::new(&sdl_context)?,
-            active_panel: None,
             panels: self.panels,
         });
     }

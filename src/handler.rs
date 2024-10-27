@@ -6,22 +6,27 @@ use sdl2::mouse::MouseButton;
 use sdl2::rect::Rect;
 use sdl2::{EventPump, Sdl};
 
+use crate::widgets::WidgetType;
 use crate::Panel;
+
+pub type WidgetData = (&'static str, WidgetType, usize);
 
 pub struct EventHandler {
     pump: EventPump,
-    hovered: Option<usize>,
+    // dragging: Option<WidgetData>,
     active_panel: Option<&'static str>,
-    lmb_down: (bool, i32, i32), // (is_down, x, y)
+    lmb_pressed_on: Option<WidgetData>,
+    hovered: Option<WidgetData>,
 }
 
 impl EventHandler {
     pub fn new(context: &Sdl) -> Result<EventHandler, String> {
         Ok(EventHandler {
             pump: context.event_pump()?,
-            hovered: None,
+            // dragging: None,
             active_panel: None,
-            lmb_down: (false, 0, 0),
+            hovered: None,
+            lmb_pressed_on: None,
         })
     }
 
@@ -29,59 +34,76 @@ impl EventHandler {
         match self.pump.wait_event() {
             Event::Quit { .. } => HandlerEvent::Quit,
             Event::TextInput { text, .. } => HandlerEvent::TextInput(text),
-
             Event::KeyDown { keycode, .. } => {
                 self.parse_keycode(keycode)
             },
             Event::MouseMotion { x, y, .. } => {
-                let panel = panels
+                // If something is pressed, we are dragging it
+                match self.lmb_pressed_on {
+                    Some(widget_data) => {
+                        return HandlerEvent::Drag(widget_data, x, y)
+                    }
+                    None => {}
+                }
+
+                // If we are not on any panel, we aren't hovering anything
+                self.active_panel = panels
                     .iter()
                     .find(|panel| in_bounds(&panel.1.bounds, x, y))
                     .map(|panel| *panel.0);
+                if self.active_panel.is_none() {
+                    if self.hovered.is_some() {
+                        let hovered = self.hovered.unwrap();
+                        self.hovered = None;
+                        return HandlerEvent::UnHover(hovered);
+                    }
+                    return HandlerEvent::None
+                }
 
-                if panel != self.active_panel {
-                    self.active_panel = panel;
+                // We are hovering a panel
+                let active_panel = self.active_panel.unwrap();
+                let hovered = panels[active_panel].get_widget_data(x, y);
+                if hovered.is_some() && self.hovered != hovered {
+                    self.hovered = hovered;
+                    return HandlerEvent::Hover(hovered.unwrap());
+                } else if hovered.is_none() && self.hovered.is_some() {
+                    let unhovered = self.hovered.unwrap();
                     self.hovered = None;
-                    return HandlerEvent::ActivePanel(panel)
+                    return HandlerEvent::UnHover(unhovered);
+                }
+                
+                HandlerEvent::None
+            },
+            Event::MouseButtonDown { mouse_btn, x, y, .. } => {
+                if mouse_btn != MouseButton::Left {
+                    return HandlerEvent::None
                 }
                 if self.active_panel.is_none() {
                     return HandlerEvent::None
                 }
-                let active_bounds = panels[self.active_panel.unwrap()].get_bounds();
-                if let Some(idx) = self.hovered {
-                    if self.lmb_down.0 {
-                        return HandlerEvent::Drag(idx, x, y)
+                let active_panel = self.active_panel.unwrap();
+                let widget_data = panels[active_panel].get_widget_data(x, y);
+
+                self.lmb_pressed_on = widget_data;
+
+                HandlerEvent::None
+            },
+
+            Event::MouseButtonUp { mouse_btn, x, y, .. } => {
+                if mouse_btn != MouseButton::Left {
+                    return HandlerEvent::None
+                }
+                if self.active_panel.is_some() && self.lmb_pressed_on.is_some() {
+                    let widget = panels[self.active_panel.unwrap()].get_widget_data(x, y);
+                    let pressed_on = self.lmb_pressed_on.unwrap();
+                    self.lmb_pressed_on = None;
+                    if widget == Some(pressed_on) {
+                        return HandlerEvent::Click(widget.unwrap());
                     }
-                    if !in_bounds(&active_bounds[idx], x, y) {
-                        self.hovered = None;
-                        return HandlerEvent::UnHover(idx)
-                    }
+                    return HandlerEvent::UnHover(pressed_on);
                 } else {
-                    for (idx, b) in active_bounds.iter().enumerate() {
-                        if in_bounds(b, x, y) {
-                            self.hovered = Some(idx);
-                            return HandlerEvent::Hover(idx);
-                        }
-                    }
+                    return HandlerEvent::ClickBackround
                 }
-                HandlerEvent::None
-            },
-            Event::MouseButtonDown { mouse_btn, x, y, .. } => {
-                if mouse_btn == MouseButton::Left {
-                    self.lmb_down = (true, x, y);
-                }
-                HandlerEvent::None
-            },
-            Event::MouseButtonUp { mouse_btn, .. } => {
-                if mouse_btn == MouseButton::Left {
-                    self.lmb_down.0 = false;
-                    if let Some(idx) = self.hovered {
-                        return HandlerEvent::Click(idx)
-                    } else {
-                        return HandlerEvent::ClickBackround
-                    }
-                }
-                HandlerEvent::None
             }
             _ => HandlerEvent::None,
         }
@@ -94,6 +116,7 @@ impl EventHandler {
                 Keycode::Tab => HandlerEvent::TabPress,
                 Keycode::Return => HandlerEvent::Return,
                 Keycode::Escape => HandlerEvent::Escape,
+                Keycode::F12 => HandlerEvent::ToggleDebug,
                 _ => HandlerEvent::None,
             }
         }
@@ -105,11 +128,11 @@ impl EventHandler {
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub enum HandlerEvent {
     Quit,
-    Hover(usize),
-    UnHover(usize),
-    Click(usize),
-    Drag(usize, i32, i32),
-    ActivePanel(Option<&'static str>),
+    Hover(WidgetData),
+    UnHover(WidgetData),
+    Click(WidgetData),
+    Drag(WidgetData, i32, i32),
+    ToggleDebug,
     Escape,
     Return,
     TextInput(String),

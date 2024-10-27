@@ -1,3 +1,4 @@
+use core::panic;
 use std::i32;
 
 use sdl2::pixels::Color;
@@ -10,7 +11,9 @@ use crate::widgets::Button;
 use crate::widgets::Fader;
 use crate::widgets::TextField;
 use crate::widgets::Widget;
+use crate::widgets::WidgetType;
 use crate::{Render, RenderText, DEBUG};
+use crate::handler::WidgetData;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Panel<T> 
@@ -18,7 +21,6 @@ where
     T: Copy,
 {
     pub name: &'static str,
-    pub position: (i32, i32),
     pub bounds: Rect,
     pub buttons: Vec<Button<T>>,
     pub textfields: Vec<TextField>,
@@ -48,11 +50,14 @@ where
             ].concat()
         );
 
-        Panel { name, position, bounds, buttons, textfields, faders, font: crate::DEFAULTFONT }
+        Panel { name, bounds, buttons, textfields, faders, font: crate::DEFAULTFONT }
     }
 
     pub fn draw(&self, canvas: &mut Canvas<Window>, ttf: &Sdl2TtfContext) -> Result<(), String> {
-
+        if unsafe { DEBUG } {
+            canvas.set_draw_color(Color::RGB(255, 0, 0));
+            canvas.draw_rect(self.bounds)?;
+        }
         for button in &self.buttons {
             button.render(canvas)?;
             button.render_text(ttf, canvas, self.font)?;
@@ -65,10 +70,7 @@ where
             fader.render(canvas)?;
             fader.render_text(ttf, canvas, self.font)?;
         }
-        if DEBUG {
-            canvas.set_draw_color(Color::RGB(255, 0, 0));
-            canvas.draw_rect(self.bounds)?;
-        }
+
         Ok(())
     }
 
@@ -92,6 +94,14 @@ where
         self.textfields[idx].push(c.to_string());
     }
 
+    pub fn push_to_active_textfields(&mut self, s: &str) {
+        self.textfields.iter_mut().for_each(|textfield| {
+            if textfield.is_active() {
+                textfield.push(s.to_string());
+            }
+        });
+    }
+
     pub fn pop_from_textfield(&mut self, idx: usize) -> Option<char> {
         self.textfields[idx].pop_char()
     }
@@ -103,16 +113,16 @@ where
     pub fn get_bounds(&self) -> Vec<Rect> {
         let mut bounds = self.buttons
             .iter()
-            .map(|button| button.bounds())
+            .map(|button| button.visual_bounds())
             .collect::<Vec<Rect>>();
         
         self.textfields
             .iter()
-            .for_each(|textfield| bounds.push(textfield.bounds()));
+            .for_each(|textfield| bounds.push(textfield.visual_bounds()));
 
         self.faders
             .iter()
-            .for_each(|fader| bounds.push(fader.bounds()));
+            .for_each(|fader| bounds.push(fader.visual_bounds()));
         
         assert_eq!(
             bounds.len(),
@@ -128,6 +138,19 @@ where
     pub fn unhover_buttons(&mut self) {
         self.buttons.iter_mut().for_each(|button| button.is_hovered(false));
     }
+
+    pub fn get_widget_data(&self, x: i32, y: i32) -> Option<WidgetData> {
+        if let Some(btn) = self.buttons.iter().enumerate().find(|btn| in_bounds(&btn.1.visual_bounds(), x, y)) {
+            return Some((self.name, WidgetType::Button, btn.0));
+        }
+        if let Some(tf) = self.textfields.iter().enumerate().find(|tf| in_bounds(&tf.1.visual_bounds(), x, y)) {
+            return Some((self.name, WidgetType::TextField, tf.0));
+        }
+        if let Some(fd) = self.faders.iter().enumerate().find(|fd| in_bounds(&fd.1.visual_bounds(), x, y)) {
+            return Some((self.name, WidgetType::Fader, fd.0));
+        }
+        None
+    }
 }
 
 fn bounding_box(rects: Vec<Rect>) -> Rect {
@@ -141,4 +164,8 @@ fn bounding_box(rects: Vec<Rect>) -> Rect {
     let max_y = rects.iter().map(|rect| rect.y + rect.height() as i32).max().unwrap();
 
     Rect::new(min_x, min_y, (max_x - min_x) as u32, (max_y - min_y) as u32)
+}
+
+fn in_bounds(rect: &Rect, x: i32, y: i32) -> bool {
+    x >= rect.x && x <= rect.x + rect.w && y >= rect.y && y <= rect.y + rect.h
 }

@@ -27,11 +27,14 @@ fn main() -> Result<(), String> {
         match calc.poll() {
             GuiEvent::None => {}
             GuiEvent::Quit => running = false,
-            GuiEvent::Callback(cb) => match cb {
+            GuiEvent::Callback(_, cb) => match cb {
                 Callback::Num(c) => calc.push_to_textfield("calculator", 0, c as char),
                 Callback::Clear => calc.clear_textfield("calculator", 0),
                 Callback::Equals => {
-                    calc.set_textfield_content("calculator", 0, evaluate(calc.textfields().nth(0).unwrap()))
+                    calc.set_textfield_content(
+                        "calculator", 0, 
+                        evaluate(calc.textfields("calculator").nth(0).unwrap())
+                    )
                 }
             },
             _ => {}
