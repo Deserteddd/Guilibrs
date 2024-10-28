@@ -47,7 +47,8 @@ where
         Panel { name, bounds, buttons, textfields, faders, font: crate::DEFAULTFONT }
     }
 
-    pub fn draw(&self, canvas: &mut Canvas<Window>, ttf: &Sdl2TtfContext) -> Result<(), String> {
+    pub fn draw(&self, canvas: &mut Canvas<Window>, ttf: &Sdl2TtfContext, active: Option<WidgetData>)
+    -> Result<(), String> {
         if unsafe { DEBUG } {
             canvas.set_draw_color(Color::RGB(255, 0, 0));
             canvas.draw_rect(self.bounds)?;
@@ -64,7 +65,23 @@ where
             fader.render(canvas)?;
             fader.render_text(ttf, canvas, self.font)?;
         }
-
+        if let Some(widget) = active {
+            if widget.0 == self.name {
+                let rect = match widget.1 {
+                    WidgetType::Button => {
+                        self.buttons[widget.2].visual_bounds()
+                    },
+                    WidgetType::Fader => {
+                        self.faders[widget.2].visual_bounds()
+                    },
+                    WidgetType::TextField => {
+                        self.textfields[widget.2].bounds()
+                    }
+                };
+                canvas.set_draw_color(Color::RGB(80, 80, 80));
+                canvas.draw_rect(rect)?;
+            }
+        }
         Ok(())
     }
 

@@ -19,6 +19,7 @@ where
     backround_color: Color,
     handler: EventHandler,
     panels: HashMap<&'static str, Panel<T>>,
+    active_widget: Option<WidgetData>,
 }
 impl<T> GUI<T>
 where
@@ -49,6 +50,7 @@ where
             },
             HandlerEvent::ClickBackround => {
                 self.deselect_textfields();
+                self.active_widget = None;
             },
             HandlerEvent::PopChar => {
                 self.pop_active_textfield();
@@ -68,6 +70,7 @@ where
             },
             HandlerEvent::Click(widget) => {
                 self.deselect_textfields();
+                self.active_widget = Some(widget);
                 match widget.1 {
                     WidgetType::Button => {
                         return GuiEvent::Callback(widget.0, self.panels[widget.0].buttons[widget.2].click());
@@ -94,7 +97,7 @@ where
         self.canvas.set_draw_color(self.backround_color);
         self.canvas.clear();
         for panel in self.panels.values() {
-            panel.draw(&mut self.canvas, &self.ttf_context)?;
+            panel.draw(&mut self.canvas, &self.ttf_context, self.active_widget)?;
         }
 
         self.canvas.present();
@@ -250,6 +253,7 @@ where
             backround_color: self.backround_color,
             handler: EventHandler::new(&sdl_context)?,
             panels: self.panels,
+            active_widget: None,
         });
     }
 }
