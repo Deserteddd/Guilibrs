@@ -1,23 +1,14 @@
-use crate::handler::{EventHandler, HandlerEvent};
-
 use crate::{GuiEvent, BACKROUNDCOLOR, DEBUG};
+use crate::handler::{EventHandler, HandlerEvent};
 use crate::panel::Panel;
-use crate::widgets::{Button, Fader, TextField, WidgetType};
-
-use std::collections::HashMap;
+use crate::widgets::{Button, Fader, TextField, WidgetData, WidgetType};
 
 use sdl2::pixels::Color;
-use sdl2::rect::Rect;
 use sdl2::render::Canvas;
 use sdl2::ttf::Sdl2TtfContext;
 use sdl2::video::Window;
 
-macro_rules! _rect(
-  ($x:expr, $y:expr, $w:expr, $h:expr) => (
-    Rect::new($x as i32, $y as i32, $w as u32, $h as u32)
-  )
-);
-
+use std::collections::HashMap;
 
 pub struct GUI<T>
 where
@@ -63,47 +54,16 @@ where
                 self.pop_active_textfield();
             },
             HandlerEvent::Hover(widget) => {
-                match widget.1 {
-                    WidgetType::Button => self.panels
-                        .get_mut(widget.0)
-                        .unwrap()
-                        .buttons[widget.2]
-                        .is_hovered(true),
-                    WidgetType::Fader => self.panels
-                        .get_mut(widget.0)
-                        .unwrap()
-                        .faders[widget.2]
-                        .is_hovered(true),
-                    _ => {}
-                };
+                self.hover_widget(widget);
             },
             HandlerEvent::UnHover(widget) => {
-                match widget.1 {
-                    WidgetType::Button => self.panels
-                        .get_mut(widget.0)
-                        .unwrap()
-                        .buttons[widget.2]
-                        .is_hovered(false),
-                    WidgetType::Fader => self.panels
-                        .get_mut(widget.0)
-                        .unwrap()
-                        .faders[widget.2]
-                        .is_hovered(false),
-                    _ => {}
-                }
+                self.unhover_widget(widget);
             },
             HandlerEvent::Drag(widget, x, y) => {
-                match widget.1 {
-                    WidgetType::Fader => {
-                        self.panels
-                            .get_mut(widget.0)
-                            .unwrap()
-                            .faders[widget.2]
-                            .drag(x, y);
-
-                        return GuiEvent::FaderUpdate(widget.0, widget.2, self.panels[widget.0].faders[widget.2].value());
-                    },
-                    _ => {}
+                if let Some(val) = self.drag(widget, x, y) {
+                    return GuiEvent::FaderUpdate(
+                        widget.0, widget.2, val
+                    );
                 }
             },
             HandlerEvent::Click(widget) => {
@@ -173,22 +133,11 @@ where
             .push_to_textfield(idx, c);
     }
 
-    pub fn pop_from_textfield(&mut self, panel: &'static str, idx: usize) -> Option<char> {
-        self.panels
-            .get_mut(panel)
-            .expect(&format!("Panel '{}' doesn't exist", panel))
-            .pop_from_textfield(idx)
-    }
-
     pub fn clear_textfield(&mut self, panel: &'static str, idx: usize) {
         self.panels
             .get_mut(panel)
             .expect(&format!("Panel '{}' doesn't exist", panel))
             .clear_textfield(idx);
-    }
-
-    pub fn panel_bounds(&self) -> Vec<Rect> {
-        self.panels.values().map(|panel| panel.bounds).collect()
     }
 
     fn deselect_textfields(&mut self) {
@@ -197,6 +146,28 @@ where
                 tb.set_active(false);
             })
         );
+    }
+
+    fn unhover_widget(&mut self, widget: WidgetData) {
+        self.panels
+            .get_mut(widget.0)
+            .unwrap()
+            .unhover(widget.1, widget.2)
+
+    }
+
+    fn hover_widget(&mut self, widget: WidgetData) {
+        self.panels
+            .get_mut(widget.0)
+            .unwrap()
+            .hover(widget.1, widget.2);
+    }
+
+    fn drag(&mut self, widget: WidgetData, x: i32, y: i32) -> Option<f32> {
+        self.panels
+            .get_mut(widget.0)
+            .unwrap()
+            .drag(widget.1, widget.2, x, y)
     }
 }
 

@@ -1,5 +1,3 @@
-extern crate guilibrs;
-
 use eval::eval;
 use guilibrs::widgets::{Button, TextField, TextAlign};
 use guilibrs::{GuiEvent, Panel, GUI};

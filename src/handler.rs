@@ -1,19 +1,15 @@
-use std::collections::HashMap;
+use crate::widgets::WidgetData;
+use crate::{Panel, in_bounds};
 
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::mouse::MouseButton;
-use sdl2::rect::Rect;
 use sdl2::{EventPump, Sdl};
 
-use crate::widgets::WidgetType;
-use crate::Panel;
-
-pub type WidgetData = (&'static str, WidgetType, usize);
+use std::collections::HashMap;
 
 pub struct EventHandler {
     pump: EventPump,
-    // dragging: Option<WidgetData>,
     active_panel: Option<&'static str>,
     lmb_pressed_on: Option<WidgetData>,
     hovered: Option<WidgetData>,
@@ -23,7 +19,6 @@ impl EventHandler {
     pub fn new(context: &Sdl) -> Result<EventHandler, String> {
         Ok(EventHandler {
             pump: context.event_pump()?,
-            // dragging: None,
             active_panel: None,
             hovered: None,
             lmb_pressed_on: None,
@@ -140,8 +135,4 @@ pub enum HandlerEvent {
     ClickBackround,
     TabPress,
     None
-}
-
-fn in_bounds(rect: &Rect, x: i32, y: i32) -> bool {
-    x >= rect.x && x <= rect.x + rect.w && y >= rect.y && y <= rect.y + rect.h
 }

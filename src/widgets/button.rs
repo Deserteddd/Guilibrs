@@ -1,17 +1,12 @@
 
-use crate::{Render, RenderText};
+use crate::{Render, RenderText, rect};
 use super::Widget;
+
 use sdl2::pixels::Color;
 use sdl2::rect::Rect;
 use sdl2::render::{Canvas, TextureQuery};
 use sdl2::ttf::Sdl2TtfContext;
 use sdl2::video::Window;
-
-macro_rules! rect(
-  ($x:expr, $y:expr, $w:expr, $h:expr) => (
-    Rect::new($x as i32, $y as i32, $w as u32, $h as u32)
-  )
-);
 
 const DEFAULT_BTN_COL: Color = Color::RGB(85, 85, 85);
 

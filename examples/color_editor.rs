@@ -1,7 +1,5 @@
-extern crate guilibrs;
 use guilibrs::{GUI, GuiEvent, Panel};
 use guilibrs::widgets::{Fader, TextField, Button, TextAlign};
-
 
 fn main() -> Result<(), String> {
     let login_screen = Panel::new(

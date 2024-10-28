@@ -3,9 +3,10 @@ mod fader;
 mod textfield;
 
 pub use fader::Fader;
-use sdl2::rect::Rect;
 pub use textfield::TextField;
 pub use button::Button;
+
+pub type WidgetData = (&'static str, WidgetType, usize);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum WidgetType {
@@ -27,18 +28,11 @@ pub enum TextAlign {
     Center,
 }
 
-/*
-Possible widget trait functions:
-    - shift(x, y) -> move widget by x, y
-    - bounds -> return widget bounds
-    - render -> render widget
-    - render_text -> render widget text
-*/
 
 pub trait Widget{
     fn shift(&mut self, x: i32, y: i32);
-    fn bounds(&self) -> Rect;
-    fn visual_bounds(&self) -> Rect {
+    fn bounds(&self) -> sdl2::rect::Rect;
+    fn visual_bounds(&self) -> sdl2::rect::Rect {
         self.bounds()
     }
 }
