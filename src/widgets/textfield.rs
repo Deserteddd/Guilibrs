@@ -133,10 +133,6 @@ impl Render for TextField {
             canvas.set_draw_color(Color::RGB(0, 255, 0));
             canvas.draw_rect(self.visual_bounds())?;
         }
-        if self.is_active {
-            canvas.set_draw_color(Color::RGB(0, 0, 255));
-            canvas.draw_rect(self.rect)?;
-        }
 
         Ok(())
     }

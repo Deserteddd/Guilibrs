@@ -96,6 +96,22 @@ impl Fader {
         self
     }
 
+    pub fn increment(&mut self) {
+        let value_range = self.range.1 - self.range.0;
+        let step = 10.0 / value_range;
+        if self.value + step <= 1.0 {
+            self.value += step;
+        }
+    }
+
+    pub fn decrement(&mut self) {
+        let value_range = self.range.1 - self.range.0;
+        let step = 10.0 / value_range;
+        if self.value - step >= 0.0 {
+            self.value -= step;
+        }
+    }
+
     pub fn drag(&mut self, x: i32, y: i32) {
         match self.orientation {
             Orientation::Horizontal => {

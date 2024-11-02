@@ -12,8 +12,6 @@ use sdl2::video::Window;
 use sdl2::pixels::Color;
 use sdl2::rect::Rect;
 
-
-
 const DEFAULTFONT: &'static str = "./Courier_Prime.ttf";
 const BACKROUNDCOLOR: Color = Color::RGB(40, 40, 40);
 static mut DEBUG: bool = false;

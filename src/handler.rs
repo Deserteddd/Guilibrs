@@ -2,7 +2,7 @@ use crate::widgets::WidgetData;
 use crate::{Panel, in_bounds};
 
 use sdl2::event::Event;
-use sdl2::keyboard::Keycode;
+use sdl2::keyboard::{Keycode, Mod};
 use sdl2::mouse::MouseButton;
 use sdl2::{EventPump, Sdl};
 
@@ -29,8 +29,9 @@ impl EventHandler {
         match self.pump.wait_event() {
             Event::Quit { .. } => HandlerEvent::Quit,
             Event::TextInput { text, .. } => HandlerEvent::TextInput(text),
-            Event::KeyDown { keycode, .. } => {
-                self.parse_keycode(keycode)
+            Event::KeyDown { keycode, keymod, .. } => {
+                let parsed = self.parse_keycode(keycode, keymod);
+                parsed
             },
             Event::MouseMotion { x, y, .. } => {
                 // If something is pressed, we are dragging it
@@ -104,14 +105,23 @@ impl EventHandler {
         }
     }
 
-    const fn parse_keycode(&self, kc: Option<Keycode>) -> HandlerEvent {
+    const fn parse_keycode(&self, kc: Option<Keycode>, km: Mod) -> HandlerEvent {
         if let Some(keycode) = kc {
             return match keycode {
                 Keycode::Backspace => HandlerEvent::PopChar,
-                Keycode::Tab => HandlerEvent::TabPress,
                 Keycode::Return => HandlerEvent::Return,
                 Keycode::Escape => HandlerEvent::Escape,
                 Keycode::F12 => HandlerEvent::ToggleDebug,
+                Keycode::Right => HandlerEvent::ArrowKey(Direction::Right),
+                Keycode::Left => HandlerEvent::ArrowKey(Direction::Left),
+                Keycode::Up => HandlerEvent::ArrowKey(Direction::Up),
+                Keycode::Down => HandlerEvent::ArrowKey(Direction::Down),
+                Keycode::Tab => {
+                    match km.contains(Mod::LSHIFTMOD) || km.contains(Mod::RSHIFTMOD) {
+                        true => HandlerEvent::ShitTab,
+                        false => HandlerEvent::Tab
+                    }
+                }
                 _ => HandlerEvent::None,
             }
         }
@@ -131,8 +141,19 @@ pub enum HandlerEvent {
     Escape,
     Return,
     TextInput(String),
+    ArrowKey(Direction),
     PopChar,
     ClickBackround,
-    TabPress,
+    Tab,
+    ShitTab,
     None
+}
+
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Direction {
+    Up,
+    Down,
+    Left,
+    Right
 }

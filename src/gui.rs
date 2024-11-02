@@ -1,7 +1,7 @@
 use crate::{GuiEvent, BACKROUNDCOLOR, DEBUG};
 use crate::handler::{EventHandler, HandlerEvent};
 use crate::panel::Panel;
-use crate::widgets::{Button, Fader, TextField, WidgetData, WidgetType};
+use crate::widgets::{Button, Fader, TextField, WidgetData};
 
 use sdl2::pixels::Color;
 use sdl2::render::Canvas;
@@ -49,7 +49,6 @@ where
                     });
             },
             HandlerEvent::ClickBackround => {
-                self.deselect_textfields();
                 self.active_widget = None;
             },
             HandlerEvent::PopChar => {
@@ -69,25 +68,41 @@ where
                 }
             },
             HandlerEvent::Click(widget) => {
-                self.deselect_textfields();
                 self.active_widget = Some(widget);
-                match widget.1 {
-                    WidgetType::Button => {
-                        return GuiEvent::Callback(widget.0, self.panels[widget.0].buttons[widget.2].click());
-                    },
-                    WidgetType::TextField => {
-                        if self.panels[widget.0].textfields[widget.2].is_clickable() {
-                            self.panels.get_mut(widget.0).unwrap().textfields[widget.2].set_active(true);
-                        }
-                    },
-                    _ => {}
+                if let Some(cb) = self.panels.get_mut(widget.0).unwrap().click(widget) {
+                    return cb
                 }
             },
             HandlerEvent::Return => {
-                self.deselect_textfields();
             },
-            HandlerEvent::TabPress => {
-                self.deselect_textfields();
+            HandlerEvent::Tab => {
+                if let Some(widget) = self.active_widget {
+                println!("before: {:?}", self.active_widget);
+                    self.active_widget = self.panels
+                        .get_mut(widget.0)
+                        .unwrap()
+                        .next_widget();
+                println!("after: {:?}", self.active_widget);
+                }
+            },
+            HandlerEvent::ShitTab => {
+                if let Some(widget) = self.active_widget {
+                    self.active_widget = self.panels
+                        .get_mut(widget.0)
+                        .unwrap()
+                        .previous_widget()
+                }
+
+            },
+            HandlerEvent::ArrowKey(dir) => {
+                if let Some(widget) = self.active_widget {
+                    if let Some(event) = self.panels
+                        .get_mut(widget.0)
+                        .unwrap()
+                        .arrow_key(widget.1, widget.2, dir) {
+                            return event
+                        }
+                }
             }
         }
         GuiEvent::None
@@ -143,13 +158,6 @@ where
             .clear_textfield(idx);
     }
 
-    fn deselect_textfields(&mut self) {
-        self.panels.iter_mut().for_each(|panel|
-            panel.1.textfields.iter_mut().for_each(|tb| {
-                tb.set_active(false);
-            })
-        );
-    }
 
     fn unhover_widget(&mut self, widget: WidgetData) {
         self.panels
