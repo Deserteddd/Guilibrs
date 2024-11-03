@@ -1,7 +1,7 @@
 use crate::{GuiEvent, BACKROUNDCOLOR, DEBUG};
 use crate::handler::{EventHandler, HandlerEvent};
 use crate::panel::Panel;
-use crate::widgets::{Button, Fader, TextField, WidgetData};
+use crate::widgets::{Button, Fader, MenuBar, TextField, WidgetData};
 
 use sdl2::pixels::Color;
 use sdl2::render::Canvas;
@@ -20,6 +20,7 @@ where
     handler: EventHandler,
     panels: HashMap<&'static str, Panel<T>>,
     active_widget: Option<WidgetData>,
+    menu_bar: MenuBar
 }
 impl<T> GUI<T>
 where
@@ -37,7 +38,8 @@ where
         match event {
             HandlerEvent::None => return GuiEvent::None,
             HandlerEvent::Quit { .. } => return GuiEvent::Quit,
-            HandlerEvent::Escape => return GuiEvent::Quit,
+            HandlerEvent::Escape => self.deselect_all(),
+            HandlerEvent::ClickBackround => self.deselect_all(),
             HandlerEvent::ToggleDebug => {
                 unsafe { crate::DEBUG = !crate::DEBUG; }
             },
@@ -47,9 +49,6 @@ where
                     .for_each(|panel| {
                         panel.1.push_to_active_textfields(text);
                     });
-            },
-            HandlerEvent::ClickBackround => {
-                self.active_widget = None;
             },
             HandlerEvent::PopChar => {
                 self.pop_active_textfield();
@@ -62,28 +61,43 @@ where
             },
             HandlerEvent::Drag(widget, x, y) => {
                 if let Some(val) = self.drag(widget, x, y) {
-                    return GuiEvent::FaderUpdate(
-                        widget.0, widget.2, val
-                    );
+                    return GuiEvent::FaderUpdate(widget.0, widget.2, val);
                 }
             },
             HandlerEvent::Click(widget) => {
+                if let Some(old_active) = self.active_widget {
+                    if old_active.0 != widget.0 {
+                        self.panels
+                            .get_mut(old_active.0)
+                            .unwrap()
+                            .deselect(old_active.1, old_active.2);
+                    }
+                }
                 self.active_widget = Some(widget);
-                if let Some(cb) = self.panels.get_mut(widget.0).unwrap().click(widget) {
+                if let Some(cb) = self.panels
+                    .get_mut(widget.0)
+                    .unwrap()
+                    .click(widget) {
                     return cb
                 }
             },
             HandlerEvent::Return => {
+                if let Some(widget) = self.active_widget {
+                    if let Some(cb) = self.panels.get_mut(widget.0).unwrap().click(widget) {
+                        return cb;
+                    }
+                }
             },
             HandlerEvent::Tab => {
-                if let Some(widget) = self.active_widget {
-                println!("before: {:?}", self.active_widget);
-                    self.active_widget = self.panels
-                        .get_mut(widget.0)
-                        .unwrap()
-                        .next_widget();
-                println!("after: {:?}", self.active_widget);
-                }
+                let panel = match self.active_widget {
+                    Some(w) => w.0,
+                    None => self.panels.keys().nth(0).unwrap()
+                };
+                self.active_widget = Some(self.panels
+                    .get_mut(panel)
+                    .unwrap()
+                    .next_widget()
+                )
             },
             HandlerEvent::ShitTab => {
                 if let Some(widget) = self.active_widget {
@@ -91,8 +105,8 @@ where
                         .get_mut(widget.0)
                         .unwrap()
                         .previous_widget()
+                    
                 }
-
             },
             HandlerEvent::ArrowKey(dir) => {
                 if let Some(widget) = self.active_widget {
@@ -103,7 +117,7 @@ where
                             return event
                         }
                 }
-            }
+            },
         }
         GuiEvent::None
     }
@@ -112,9 +126,9 @@ where
         self.canvas.set_draw_color(self.backround_color);
         self.canvas.clear();
         for panel in self.panels.values() {
-            panel.draw(&mut self.canvas, &self.ttf_context, self.active_widget)?;
+            panel.draw(&mut self.canvas, &self.ttf_context)?;
         }
-
+        self.menu_bar.draw(&mut self.canvas, &self.ttf_context)?;
         self.canvas.present();
         Ok(())
     }
@@ -158,6 +172,12 @@ where
             .clear_textfield(idx);
     }
 
+    fn deselect_all(&mut self) {
+        if let Some(widget) = self.active_widget {
+            self.panels.get_mut(widget.0).unwrap().deselect(widget.1, widget.2);
+            self.active_widget = None
+        }
+    } 
 
     fn unhover_widget(&mut self, widget: WidgetData) {
         self.panels
@@ -195,6 +215,7 @@ where
     buttons: Vec<Button<T>>,
     textfields: Vec<TextField>,
     faders: Vec<Fader>,
+    menu: Option<MenuBar>,
 }
 impl<T> GuiBuilder<T>
 where
@@ -209,6 +230,7 @@ where
             buttons: vec![],
             textfields: vec![],
             faders: vec![],
+            menu: None
         }
     }
     pub const fn color(mut self, rgb: (u8, u8, u8)) -> GuiBuilder<T> {
@@ -242,6 +264,10 @@ where
         }
         self
     }
+    pub fn menu(mut self, menu: MenuBar) -> GuiBuilder<T> {
+        self.menu = Some(menu);
+        self
+    }
     pub fn build(self) -> Result<GUI<T>, String> {
         let sdl_context = sdl2::init()?;
         let ttf_context = sdl2::ttf::init().map_err(|e| e.to_string())?;
@@ -262,6 +288,10 @@ where
             handler: EventHandler::new(&sdl_context)?,
             panels: self.panels,
             active_widget: None,
+            menu_bar: match self.menu {
+                Some(bar) => bar,
+                None => MenuBar::empty()
+            }
         });
     }
 }

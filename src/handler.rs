@@ -1,5 +1,5 @@
 use crate::widgets::WidgetData;
-use crate::{Panel, in_bounds};
+use crate::{Panel, in_bounds, Direction};
 
 use sdl2::event::Event;
 use sdl2::keyboard::{Keycode, Mod};
@@ -30,8 +30,7 @@ impl EventHandler {
             Event::Quit { .. } => HandlerEvent::Quit,
             Event::TextInput { text, .. } => HandlerEvent::TextInput(text),
             Event::KeyDown { keycode, keymod, .. } => {
-                let parsed = self.parse_keycode(keycode, keymod);
-                parsed
+                self.parse_keycode(keycode, keymod)
             },
             Event::MouseMotion { x, y, .. } => {
                 // If something is pressed, we are dragging it
@@ -150,10 +149,3 @@ pub enum HandlerEvent {
 }
 
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub enum Direction {
-    Up,
-    Down,
-    Left,
-    Right
-}

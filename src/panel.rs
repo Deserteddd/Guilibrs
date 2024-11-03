@@ -6,7 +6,7 @@ use sdl2::video::Window;
 use sdl2::ttf::Sdl2TtfContext;
 use sdl2::rect::Rect;
 
-use crate::handler::Direction;
+use crate::Direction;
 use crate::widgets::{Widget, WidgetType, WidgetData, Button, Fader, TextField};
 use crate::{bounding_box, in_bounds, GuiEvent, Render, RenderText, DEBUG};
 
@@ -59,7 +59,7 @@ where
         }
     }
 
-    pub fn draw(&self, canvas: &mut Canvas<Window>, ttf: &Sdl2TtfContext, active: Option<WidgetData>)
+    pub fn draw(&self, canvas: &mut Canvas<Window>, ttf: &Sdl2TtfContext)
     -> Result<(), String> {
         if unsafe { DEBUG } {
             canvas.set_draw_color(Color::RGB(255, 0, 0));
@@ -77,22 +77,21 @@ where
             fader.render(canvas)?;
             fader.render_text(ttf, canvas, self.font)?;
         }
-        if let Some(widget) = active {
-            if widget.0 == self.name {
-                let rect = match widget.1 {
-                    WidgetType::Button => {
-                        self.buttons[widget.2].visual_bounds()
-                    },
-                    WidgetType::Fader => {
-                        self.faders[widget.2].visual_bounds()
-                    },
-                    WidgetType::TextField => {
-                        self.textfields[widget.2].bounds()
-                    }
-                };
-                canvas.set_draw_color(Color::RGB(80, 80, 180));
-                canvas.draw_rect(rect)?;
-            }
+        if let Some(widget) = self.active {
+            let widget = self.widget_order[widget];
+            let rect = match widget.0 {
+                WidgetType::Button => {
+                    self.buttons[widget.1].visual_bounds()
+                },
+                WidgetType::Fader => {
+                    self.faders[widget.1].visual_bounds()
+                },
+                WidgetType::TextField => {
+                    self.textfields[widget.1].bounds()
+                }
+            };
+            canvas.set_draw_color(Color::RGB(80, 80, 180));
+            canvas.draw_rect(rect)?;
         }
         Ok(())
     }
@@ -121,50 +120,41 @@ where
         }
     }
 
-    pub fn next_widget(&mut self) -> Option<WidgetData> {
-        println!("-----------next_widget()-------------");
-        println!("self.active: {:?}", self.active);
-        self.deselect_all();
-        let new_active = if self.active.is_none() {
+    pub fn deselect(&mut self, w_type: WidgetType, idx: usize) {
+        match w_type {
+            WidgetType::TextField => self.textfields[idx].set_active(false),
+            _ => {}
+        }
+        self.active = None;
+    }
+
+    pub fn next_widget(&mut self) -> WidgetData {
+        if self.active.is_none() {
             self.active = Some(0);
-            Some((self.name, self.widget_order[0].0, self.widget_order[0].1))
-        } else if self.active.unwrap() + 1 >= self.widget_order.len(){
-            self.active = Some(0);
-            Some((self.name, self.widget_order[0].0, self.widget_order[0].1))
-        } else {
-            let new = self.active.unwrap() + 1;
-            self.active = Some(new);
-            Some((self.name, self.widget_order[new].0, self.widget_order[new].1))
-        };
-        if new_active.is_some() && new_active.unwrap().1 == WidgetType::TextField {
-            self.deselect_all();
-            if self.textfields[new_active.unwrap().2].is_clickable() {
-                self.textfields[new_active.unwrap().2].set_active(true);
-            }
-        };
-        new_active
+            self.activate_active_textfield();
+            return (self.name, self.widget_order[0].0, self.widget_order[0].1);
+        }
+        let new = (self.active.unwrap() + 1) % self.widget_order.len();
+        
+        self.deselect_active_textfield();
+        self.active = Some(new);
+        self.activate_active_textfield();
+        
+        (self.name, self.widget_order[new].0, self.widget_order[new].1)
     }
 
     pub fn previous_widget(&mut self) -> Option<WidgetData> {
-        self.deselect_all();
-        let new_active = if self.active.is_none() {
-            None
-        } else if self.active == Some(0) {
-            let new = self.widget_order.len()-1;
-            self.active = Some(new);
-            Some((self.name, self.widget_order[new].0, self.widget_order[new].1))
-        } else {
-            let new = self.active.unwrap() - 1;
-            self.active = Some(new);
-            Some((self.name, self.widget_order[new].0, self.widget_order[new].1))
+        let new = match self.active {
+            Some(0) => self.widget_order.len()-1,
+            Some(n) => n-1,
+            None => return None
         };
-        if new_active.is_some() && new_active.unwrap().1 == WidgetType::TextField {
-            self.deselect_all();
-            if self.textfields[new_active.unwrap().2].is_clickable() {
-                self.textfields[new_active.unwrap().2].set_active(true);
-            }
-        }
-        new_active
+        
+        self.deselect_active_textfield();
+        self.active = Some(new);
+        self.activate_active_textfield();
+
+        Some((self.name, self.widget_order[new].0, self.widget_order[new].1))
     } 
 
     pub fn set_textfield_content(&mut self, idx: usize, content: String) {
@@ -256,7 +246,6 @@ where
             WidgetType::Button => Some(GuiEvent::Callback(self.name, self.buttons[widget.2].click())),
             WidgetType::TextField => {
                 if self.textfields[widget.2].is_clickable() {
-                    self.deselect_all();
                     self.textfields[widget.2].set_active(true);
                 }
                 None
@@ -265,8 +254,22 @@ where
         }
     }
 
-    fn deselect_all(&mut self) {
-        self.textfields.iter_mut().for_each(|tf| tf.set_active(false));
+    fn deselect_active_textfield(&mut self) {
+        if let Some(active) = self.active {
+            let active_widget = self.widget_order[active];
+            if active_widget.0 == WidgetType::TextField {
+                self.textfields[active_widget.1].set_active(false);
+            }
+        }
+    }
+
+    fn activate_active_textfield(&mut self) {
+        if let Some(active) = self.active {
+            let active_widget = self.widget_order[active];
+            if active_widget.0 == WidgetType::TextField {
+                self.textfields[active_widget.1].set_active(true);
+            }
+        }
     }
 }
 

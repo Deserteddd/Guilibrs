@@ -102,6 +102,9 @@ impl TextField {
         self.content.pop()
     }
     pub fn set_active(&mut self, b: bool) {
+        if b &! self.clickable {
+            return;
+        }
         self.is_active = b
     }
     pub fn set_content(&mut self, s: String) {
