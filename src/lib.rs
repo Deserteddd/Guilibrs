@@ -3,6 +3,7 @@ mod gui;
 mod panel;
 pub mod widgets;
 
+
 pub use crate::gui::GUI;
 pub use crate::panel::Panel;
 
@@ -12,14 +13,14 @@ use sdl2::video::Window;
 use sdl2::pixels::Color;
 use sdl2::rect::Rect;
 
-const DEFAULTFONT: &'static str = "./Courier_Prime.ttf";
+const FONT: &'static str = "./Courier_Prime.ttf";
 const BACKROUNDCOLOR: Color = Color::RGB(40, 40, 40);
 static mut DEBUG: bool = false;
 
 #[macro_export]
 macro_rules! rect(
   ($x:expr, $y:expr, $w:expr, $h:expr) => (
-    Rect::new($x as i32, $y as i32, $w as u32, $h as u32)
+    sdl2::rect::Rect::new($x as i32, $y as i32, $w as u32, $h as u32)
   )
 );
 
@@ -27,7 +28,16 @@ pub enum GuiEvent<T> {
     Quit,
     Callback(&'static str, T),
     FaderUpdate(&'static str, usize, f32),
+    DropdownUpdate(&'static str, usize, &'static str),
     None
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Direction {
+    Up,
+    Down,
+    Left,
+    Right
 }
 
 pub trait Render {

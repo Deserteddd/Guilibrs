@@ -7,7 +7,7 @@ use sdl2::ttf::Sdl2TtfContext;
 use sdl2::rect::Rect;
 
 use crate::Direction;
-use crate::widgets::{Widget, WidgetType, WidgetData, Button, Fader, TextField};
+use crate::widgets::{Button, DropdownButton, Fader, TextField, Widget, WidgetData, WidgetType};
 use crate::{bounding_box, in_bounds, GuiEvent, Render, RenderText, DEBUG};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -20,6 +20,7 @@ where
     pub buttons: Vec<Button<T>>,
     pub textfields: Vec<TextField>,
     pub faders: Vec<Fader>,
+    pub dropdownbuttons: Vec<DropdownButton>,
     pub font: &'static str,
     widget_order: Vec<(WidgetType, usize)>,
     active: Option<usize>
@@ -34,26 +35,30 @@ where
         position: (i32, i32),
         mut buttons: Vec<Button<T>>,
         mut textfields: Vec<TextField>,
-        mut faders: Vec<Fader>
+        mut faders: Vec<Fader>,
+        mut dropdownbuttons: Vec<DropdownButton>
     ) -> Panel<T> {
         buttons.iter_mut().for_each(|btn| btn.shift(position.0, position.1));
         textfields.iter_mut().for_each(|tf| tf.shift(position.0, position.1));
         faders.iter_mut().for_each(|fd| fd.shift(position.0, position.1));
+        dropdownbuttons.iter_mut().for_each(|ddb| ddb.shift(position.0, position.1));
         let bounds = bounding_box(
             [
                 buttons.iter().map(|button| button.bounds()).collect::<Vec<Rect>>(),
                 textfields.iter().map(|textfield| textfield.visual_bounds()).collect::<Vec<Rect>>(),
-                faders.iter().map(|fader| fader.bounds()).collect::<Vec<Rect>>()
+                faders.iter().map(|fader| fader.bounds()).collect::<Vec<Rect>>(),
+                dropdownbuttons.iter().map(|ddb| ddb.bounds()).collect::<Vec<Rect>>()
             ].concat()
         );
-        let order = widget_order(buttons.clone(), textfields.clone(), faders.clone());
+        let order = widget_order(buttons.clone(), textfields.clone(), faders.clone(), dropdownbuttons.clone());
         Panel { 
             name, 
             bounds, 
             buttons, 
             textfields, 
-            faders, 
-            font: crate::DEFAULTFONT, 
+            faders,
+            dropdownbuttons, 
+            font: crate::FONT, 
             widget_order: order,
             active: None
         }
@@ -77,6 +82,10 @@ where
             fader.render(canvas)?;
             fader.render_text(ttf, canvas, self.font)?;
         }
+        for dropdownbutton in &self.dropdownbuttons {
+            dropdownbutton.render(canvas)?;
+            dropdownbutton.render_text(ttf, canvas, self.font)?;
+        }
         if let Some(widget) = self.active {
             let widget = self.widget_order[widget];
             let rect = match widget.0 {
@@ -88,6 +97,9 @@ where
                 },
                 WidgetType::TextField => {
                     self.textfields[widget.1].bounds()
+                },
+                WidgetType::DropdownButton => {
+                    self.dropdownbuttons[widget.1].bounds()
                 }
             };
             canvas.set_draw_color(Color::RGB(80, 80, 180));
@@ -123,6 +135,7 @@ where
     pub fn deselect(&mut self, w_type: WidgetType, idx: usize) {
         match w_type {
             WidgetType::TextField => self.textfields[idx].set_active(false),
+            WidgetType::DropdownButton => self.dropdownbuttons[idx].close(),
             _ => {}
         }
         self.active = None;
@@ -131,14 +144,14 @@ where
     pub fn next_widget(&mut self) -> WidgetData {
         if self.active.is_none() {
             self.active = Some(0);
-            self.activate_active_textfield();
+            self.select_active();
             return (self.name, self.widget_order[0].0, self.widget_order[0].1);
         }
         let new = (self.active.unwrap() + 1) % self.widget_order.len();
         
-        self.deselect_active_textfield();
+        self.deselect_active();
         self.active = Some(new);
-        self.activate_active_textfield();
+        self.select_active();
         
         (self.name, self.widget_order[new].0, self.widget_order[new].1)
     }
@@ -150,9 +163,9 @@ where
             None => return None
         };
         
-        self.deselect_active_textfield();
+        self.deselect_active();
         self.active = Some(new);
-        self.activate_active_textfield();
+        self.select_active();
 
         Some((self.name, self.widget_order[new].0, self.widget_order[new].1))
     } 
@@ -190,6 +203,7 @@ where
         match w_type {
             WidgetType::Button => self.buttons[idx].is_hovered(false),
             WidgetType::Fader => self.faders[idx].is_hovered(false),
+            WidgetType::DropdownButton => self.dropdownbuttons[idx].unhover(),
             _ => {}
         }    
     }
@@ -221,6 +235,12 @@ where
             .find(|fd| in_bounds(&fd.1.visual_bounds(), x, y)) {
             return Some((self.name, WidgetType::Fader, fd.0));
         }
+        if let Some(ddb) = self.dropdownbuttons
+            .iter()
+            .enumerate()
+            .find(|ddb| in_bounds(&ddb.1.visual_bounds(), x, y)) {
+            return Some((self.name, WidgetType::DropdownButton, ddb.0));
+        }
         None
     }
 
@@ -235,6 +255,10 @@ where
     }
 
     pub fn click(&mut self, widget: WidgetData) -> Option<GuiEvent<T>> {
+        if self.active_widget_type() != Some(WidgetType::DropdownButton) 
+        || widget.1 != WidgetType::DropdownButton {
+            self.deselect_active();
+        }
         self.active = Some(self.widget_order
             .iter()
             .enumerate()
@@ -250,30 +274,53 @@ where
                 }
                 None
             },
-            _ => None
+            WidgetType::DropdownButton => {
+                if let Some(str) = self.dropdownbuttons[widget.2].click() {
+                    return Some(GuiEvent::DropdownUpdate(self.name, widget.2, str))
+                }
+                None
+            }
+            WidgetType::Fader => None
         }
     }
 
-    fn deselect_active_textfield(&mut self) {
+    pub fn hover_dropdown(&mut self, idx: usize, x: i32, y: i32) {
+        self.dropdownbuttons[idx].hover(x, y);
+    }
+
+    fn deselect_active(&mut self) {
         if let Some(active) = self.active {
             let active_widget = self.widget_order[active];
-            if active_widget.0 == WidgetType::TextField {
-                self.textfields[active_widget.1].set_active(false);
+            match active_widget.0 {
+                WidgetType::TextField => self.textfields[active_widget.1].set_active(false),
+                WidgetType::DropdownButton => self.dropdownbuttons[active_widget.1].close(),
+                WidgetType::Fader => {},
+                WidgetType::Button => {}
             }
         }
     }
 
-    fn activate_active_textfield(&mut self) {
+    fn select_active(&mut self) {
         if let Some(active) = self.active {
             let active_widget = self.widget_order[active];
-            if active_widget.0 == WidgetType::TextField {
-                self.textfields[active_widget.1].set_active(true);
+            match active_widget.0 {
+                WidgetType::TextField => self.textfields[active_widget.1].set_active(true),
+                WidgetType::DropdownButton => self.dropdownbuttons[active_widget.1].open(),
+                WidgetType::Fader => {},
+                WidgetType::Button => {}
             }
         }
+    }
+
+    fn active_widget_type(&self) -> Option<WidgetType> {
+        if let Some(active) = self.active {
+            return Some(self.widget_order[active].0);
+        }
+        None
     }
 }
 
-fn widget_order<T: Copy>(btns: Vec<Button<T>>, tfs: Vec<TextField>, fdrs: Vec<Fader>)
+fn widget_order<T: Copy>(btns: Vec<Button<T>>, tfs: Vec<TextField>, fdrs: Vec<Fader>, ddbtns: Vec<DropdownButton>)
 -> Vec<(WidgetType, usize)> {
     let mut widgets: Vec<(WidgetType, usize, i32, i32)> = btns
         .iter()
@@ -292,8 +339,15 @@ fn widget_order<T: Copy>(btns: Vec<Button<T>>, tfs: Vec<TextField>, fdrs: Vec<Fa
         .enumerate()
         .map(|(idx, fdr)| (WidgetType::Fader, idx, fdr.visual_bounds().x, fdr.visual_bounds().y))
         .collect();
+    
+    let mut ddbtns: Vec<(WidgetType, usize, i32, i32)> = ddbtns
+        .iter()
+        .enumerate()
+        .map(|(idx, ddb)| (WidgetType::DropdownButton, idx, ddb.visual_bounds().x, ddb.visual_bounds().y))
+        .collect();
     widgets.append(&mut tfs);
     widgets.append(&mut fdrs);
+    widgets.append(&mut ddbtns);
     widgets.sort_unstable_by_key(|widget| (widget.3, widget.2));
     widgets.iter().map(|widget| (widget.0, widget.1)).collect()
 }

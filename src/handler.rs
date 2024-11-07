@@ -1,4 +1,4 @@
-use crate::widgets::WidgetData;
+use crate::widgets::{WidgetData, WidgetType};
 use crate::{Panel, in_bounds, Direction};
 
 use sdl2::event::Event;
@@ -58,6 +58,11 @@ impl EventHandler {
                 // We are hovering a panel
                 let active_panel = self.active_panel.unwrap();
                 let hovered = panels[active_panel].get_widget_data(x, y);
+                if hovered.is_some() 
+                && hovered.unwrap().1 == WidgetType::DropdownButton {
+                    self.hovered = hovered;
+                    return HandlerEvent::HoverDropdown(hovered.unwrap(), x, y);
+                }
                 if hovered.is_some() && self.hovered != hovered {
                     self.hovered = hovered;
                     return HandlerEvent::Hover(hovered.unwrap());
@@ -133,6 +138,7 @@ impl EventHandler {
 pub enum HandlerEvent {
     Quit,
     Hover(WidgetData),
+    HoverDropdown(WidgetData, i32, i32),
     UnHover(WidgetData),
     Click(WidgetData),
     Drag(WidgetData, i32, i32),

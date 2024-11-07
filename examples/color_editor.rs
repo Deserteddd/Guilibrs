@@ -1,5 +1,5 @@
 use guilibrs::{GUI, GuiEvent, Panel};
-use guilibrs::widgets::{Fader, TextField, Button, TextAlign};
+use guilibrs::widgets::{Fader, TextField, Button, TextAlign, DropdownButton};
 
 fn main() -> Result<(), String> {
     let login_screen = Panel::new(
@@ -26,6 +26,16 @@ fn main() -> Result<(), String> {
                 .vertical()
                 .range(0., 255.)
                 .display_on_hover(),
+        ],
+        vec![
+            DropdownButton::new(140, 150)
+                .options(vec![
+                    "Moi",
+                    "Mitä",
+                    "Kuuluu",
+                    "Kukku",
+                    "Luuruu"
+                ])
         ]
     );
 
@@ -43,11 +53,11 @@ fn main() -> Result<(), String> {
             TextField::new(50, 0, 280, 40)
                 .transparent()
                 .content(&format_rgb(color))
-                .align(TextAlign::Left(0)),
+                .align(TextAlign::Center),
             TextField::new(50, 40, 280, 40)
                 .transparent()
                 .content(&format_hex(color))
-                .align(TextAlign::Left(0)),
+                .align(TextAlign::Center),
         ],
         vec![
             Fader::new(0, 180, 340)
@@ -59,7 +69,8 @@ fn main() -> Result<(), String> {
             Fader::new(0, 300, 340)
                 .range(0., 255.)
                 .initial(40.)
-        ]
+        ],
+        vec![]
     );
 
     let mut gui: GUI<u32> = GUI::new()
@@ -89,6 +100,9 @@ fn main() -> Result<(), String> {
             GuiEvent::Callback(panel, num) => {
                 println!("Clicked button {} on panel {}", num, panel);
             },
+            GuiEvent::DropdownUpdate(panel, u, option) => {
+                println!("Dropdown menu {u} on panel {panel} updated to: {option}");
+            }
         }
         gui.draw()?;
     }

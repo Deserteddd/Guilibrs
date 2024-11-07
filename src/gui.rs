@@ -1,7 +1,7 @@
 use crate::{GuiEvent, BACKROUNDCOLOR, DEBUG};
 use crate::handler::{EventHandler, HandlerEvent};
 use crate::panel::Panel;
-use crate::widgets::{Button, Fader, MenuBar, TextField, WidgetData};
+use crate::widgets::{Button, Fader, TextField, WidgetData};
 
 use sdl2::pixels::Color;
 use sdl2::render::Canvas;
@@ -20,7 +20,6 @@ where
     handler: EventHandler,
     panels: HashMap<&'static str, Panel<T>>,
     active_widget: Option<WidgetData>,
-    menu_bar: MenuBar
 }
 impl<T> GUI<T>
 where
@@ -56,6 +55,13 @@ where
             HandlerEvent::Hover(widget) => {
                 self.hover_widget(widget);
             },
+            HandlerEvent::HoverDropdown(widget, x, y) => {
+                // println!("Hovering dropdown")
+                self.panels
+                    .get_mut(widget.0)
+                    .unwrap()
+                    .hover_dropdown(widget.2, x, y);
+            }
             HandlerEvent::UnHover(widget) => {
                 self.unhover_widget(widget);
             },
@@ -80,6 +86,7 @@ where
                     .click(widget) {
                     return cb
                 }
+                
             },
             HandlerEvent::Return => {
                 if let Some(widget) = self.active_widget {
@@ -128,7 +135,7 @@ where
         for panel in self.panels.values() {
             panel.draw(&mut self.canvas, &self.ttf_context)?;
         }
-        self.menu_bar.draw(&mut self.canvas, &self.ttf_context)?;
+        // self.menu_bar.draw(&mut self.canvas, &self.ttf_context)?;
         self.canvas.present();
         Ok(())
     }
@@ -215,7 +222,6 @@ where
     buttons: Vec<Button<T>>,
     textfields: Vec<TextField>,
     faders: Vec<Fader>,
-    menu: Option<MenuBar>,
 }
 impl<T> GuiBuilder<T>
 where
@@ -230,7 +236,6 @@ where
             buttons: vec![],
             textfields: vec![],
             faders: vec![],
-            menu: None
         }
     }
     pub const fn color(mut self, rgb: (u8, u8, u8)) -> GuiBuilder<T> {
@@ -264,10 +269,7 @@ where
         }
         self
     }
-    pub fn menu(mut self, menu: MenuBar) -> GuiBuilder<T> {
-        self.menu = Some(menu);
-        self
-    }
+
     pub fn build(self) -> Result<GUI<T>, String> {
         let sdl_context = sdl2::init()?;
         let ttf_context = sdl2::ttf::init().map_err(|e| e.to_string())?;
@@ -288,10 +290,6 @@ where
             handler: EventHandler::new(&sdl_context)?,
             panels: self.panels,
             active_widget: None,
-            menu_bar: match self.menu {
-                Some(bar) => bar,
-                None => MenuBar::empty()
-            }
         });
     }
 }

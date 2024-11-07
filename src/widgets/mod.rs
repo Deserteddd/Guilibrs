@@ -1,10 +1,12 @@
 mod button;
 mod fader;
 mod textfield;
+mod dropdownbutton;
 
 pub use fader::Fader;
 pub use textfield::TextField;
 pub use button::Button;
+pub use dropdownbutton::DropdownButton;
 
 pub type WidgetData = (&'static str, WidgetType, usize);
 
@@ -12,7 +14,8 @@ pub type WidgetData = (&'static str, WidgetType, usize);
 pub enum WidgetType {
     Button,
     TextField,
-    Fader
+    Fader,
+    DropdownButton
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]

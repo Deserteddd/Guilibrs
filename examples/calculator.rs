@@ -80,6 +80,7 @@ fn setup() -> Result<GUI<Callback>, String> {
         buttons,
         vec![TextField::new(0, 0, 340, 40).align(TextAlign::Center).clickable()],
         vec![],
+        vec![]
     );
 
     GUI::new()
