@@ -1,12 +1,12 @@
+use crate::renderer::Renderer;
 use crate::{GuiEvent, BACKROUNDCOLOR, DEBUG};
 use crate::handler::{EventHandler, HandlerEvent};
 use crate::panel::Panel;
 use crate::widgets::{Button, Fader, TextField, WidgetData};
 
-use sdl2::pixels::Color;
-use sdl2::render::Canvas;
-use sdl2::ttf::Sdl2TtfContext;
-use sdl2::video::Window;
+use sdl3::pixels::Color;
+use sdl3::video::Window;
+use sdl3::Error;
 
 use std::collections::HashMap;
 
@@ -14,9 +14,8 @@ pub struct GUI<T>
 where
     T: Copy,
 {
-    ttf_context: Sdl2TtfContext,
-    canvas: Canvas<Window>,
-    backround_color: Color,
+    window: Window,
+    renderer: Renderer,
     handler: EventHandler,
     panels: HashMap<&'static str, Panel<T>>,
     active_widget: Option<WidgetData>,
@@ -36,7 +35,7 @@ where
         }
         match event {
             HandlerEvent::None => return GuiEvent::None,
-            HandlerEvent::Quit { .. } => return GuiEvent::Quit,
+            HandlerEvent::Quit => return GuiEvent::Quit,
             HandlerEvent::Escape => self.deselect_all(),
             HandlerEvent::ClickBackround => self.deselect_all(),
             HandlerEvent::ToggleDebug => {
@@ -86,7 +85,6 @@ where
                     .click(widget) {
                     return cb
                 }
-                
             },
             HandlerEvent::Return => {
                 if let Some(widget) = self.active_widget {
@@ -98,7 +96,7 @@ where
             HandlerEvent::Tab => {
                 let panel = match self.active_widget {
                     Some(w) => w.0,
-                    None => self.panels.keys().nth(0).unwrap()
+                    None => { return GuiEvent::None }
                 };
                 self.active_widget = Some(self.panels
                     .get_mut(panel)
@@ -129,15 +127,9 @@ where
         GuiEvent::None
     }
 
-    pub fn draw(&mut self) -> Result<(), String> {
-        self.canvas.set_draw_color(self.backround_color);
-        self.canvas.clear();
-        for panel in self.panels.values() {
-            panel.draw(&mut self.canvas, &self.ttf_context)?;
-        }
-        // self.menu_bar.draw(&mut self.canvas, &self.ttf_context)?;
-        self.canvas.present();
-        Ok(())
+    pub fn draw(&mut self) -> Result<(), Error> {
+        self.renderer.render(&self.window)
+
     }
 
     pub fn textfields(&self, panel: &'static str) -> std::slice::Iter<TextField> {
@@ -145,7 +137,7 @@ where
     }
 
     pub fn set_backround_color(&mut self, rgb: (u8, u8, u8)) {
-        self.backround_color = Color::RGB(rgb.0, rgb.1, rgb.2);
+        self.renderer.set_backround_color(rgb);
     }
 
     pub fn set_textfield_content(&mut self, panel: &'static str, idx: usize, content: String) {
@@ -201,7 +193,7 @@ where
             .hover(widget.1, widget.2);
     }
 
-    fn drag(&mut self, widget: WidgetData, x: i32, y: i32) -> Option<f32> {
+    fn drag(&mut self, widget: WidgetData, x: f32, y: f32) -> Option<f32> {
         self.panels
             .get_mut(widget.0)
             .unwrap()
@@ -270,26 +262,29 @@ where
         self
     }
 
-    pub fn build(self) -> Result<GUI<T>, String> {
-        let sdl_context = sdl2::init()?;
-        let ttf_context = sdl2::ttf::init().map_err(|e| e.to_string())?;
-        let canvas = sdl_context
-            .video()?
+    pub fn build(self) -> GUI<T> {
+        let sdl_context = sdl3::init().map_err(|e| e.to_string())
+            .expect("Failed to initialize SDL3");
+
+        let window = sdl_context
+            .video()
+            .expect("Video subsystem creation failed")
             .window(&self.window_title, self.window_size.0, self.window_size.1)
             .position_centered()
             .build()
-            .map_err(|e| e.to_string())?
-            .into_canvas()
-            .build()
-            .map_err(|e| e.to_string())?;
+            .expect("Window creation failed");
 
-        return Ok(GUI {
-            ttf_context,
-            canvas,
-            backround_color: self.backround_color,
-            handler: EventHandler::new(&sdl_context)?,
+        let renderer = Renderer::new(&window);
+
+        let handler = EventHandler::new(&sdl_context)
+            .expect("Event handler creation failed");
+
+        return GUI {
+            window,
+            renderer,
+            handler,
             panels: self.panels,
             active_widget: None,
-        });
+        };
     }
 }

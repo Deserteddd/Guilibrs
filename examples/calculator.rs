@@ -19,7 +19,7 @@ const BUTTONS: [[&str; 4]; 5] = [
 ];
 
 fn main() -> Result<(), String> {
-    let mut calc = setup()?;
+    let mut calc = setup();
     let mut running = true;
     while running {
         match calc.poll() {
@@ -37,7 +37,7 @@ fn main() -> Result<(), String> {
             },
             _ => {}
         }
-        calc.draw()?;
+        calc.draw().map_err(|e| e.to_string())?;
     }
 
     Ok(())
@@ -52,7 +52,7 @@ fn evaluate(textbox: &TextField) -> String {
     }
 }
 
-fn setup() -> Result<GUI<Callback>, String> {
+fn setup() -> GUI<Callback> {
     let mut buttons: Vec<Button<Callback>> = vec![];
     for i in 0..4 {
         for j in 0..5 {

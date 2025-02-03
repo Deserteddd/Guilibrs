@@ -78,7 +78,7 @@ fn main() -> Result<(), String> {
         .title("Demo app")
         .color(color)
         .size(760, 540)
-        .build()?;
+        .build();
 
 
     'running: loop {
@@ -104,7 +104,7 @@ fn main() -> Result<(), String> {
                 println!("Dropdown menu {u} on panel {panel} updated to: {option}");
             }
         }
-        gui.draw()?;
+        gui.draw().map_err(|e| e.to_string())?;
     }
     Ok(())
 }

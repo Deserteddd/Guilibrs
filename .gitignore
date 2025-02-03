@@ -1,2 +1,5 @@
 /target
 /Cargo.lock
+/SDL3.dll
+/SDL3.lib
+/examples/init_window.rs

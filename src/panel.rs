@@ -1,14 +1,14 @@
 use core::panic;
 
-use sdl2::pixels::Color;
-use sdl2::render::Canvas;
-use sdl2::video::Window;
-use sdl2::ttf::Sdl2TtfContext;
-use sdl2::rect::Rect;
+use sdl3::pixels::Color;
+use sdl3::render::Canvas;
+use sdl3::video::Window;
+use sdl3::rect::Rect;
+use sdl3::Error;
 
 use crate::Direction;
 use crate::widgets::{Button, DropdownButton, Fader, TextField, Widget, WidgetData, WidgetType};
-use crate::{bounding_box, in_bounds, GuiEvent, Render, RenderText, DEBUG};
+use crate::{bounding_box, in_bounds, GuiEvent, DEBUG};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Panel<T> 
@@ -64,27 +64,19 @@ where
         }
     }
 
-    pub fn draw(&self, canvas: &mut Canvas<Window>, ttf: &Sdl2TtfContext)
-    -> Result<(), String> {
+    pub fn _draw(&self, canvas: &mut Canvas<Window>)
+    -> Result<(), Error> {
         if unsafe { DEBUG } {
             canvas.set_draw_color(Color::RGB(255, 0, 0));
-            canvas.draw_rect(self.bounds)?;
+            canvas.draw_rect(self.bounds.into())?;
         }
         for button in &self.buttons {
-            button.render(canvas)?;
-            button.render_text(ttf, canvas, self.font)?;
         }
         for textfield in &self.textfields {
-            textfield.render(canvas)?;
-            textfield.render_text(ttf, canvas, self.font)?;
         }
         for fader in &self.faders {
-            fader.render(canvas)?;
-            fader.render_text(ttf, canvas, self.font)?;
         }
         for dropdownbutton in &self.dropdownbuttons {
-            dropdownbutton.render(canvas)?;
-            dropdownbutton.render_text(ttf, canvas, self.font)?;
         }
         if let Some(widget) = self.active {
             let widget = self.widget_order[widget];
@@ -103,7 +95,7 @@ where
                 }
             };
             canvas.set_draw_color(Color::RGB(80, 80, 180));
-            canvas.draw_rect(rect)?;
+            canvas.draw_rect(rect.into())?;
         }
         Ok(())
     }
@@ -216,7 +208,7 @@ where
         };
     }
 
-    pub fn get_widget_data(&self, x: i32, y: i32) -> Option<WidgetData> {
+    pub fn get_widget_data(&self, x: f32, y: f32) -> Option<WidgetData> {
         if let Some(btn) = self.buttons
             .iter()
             .enumerate()
@@ -244,7 +236,7 @@ where
         None
     }
 
-    pub fn drag(&mut self, w_type: WidgetType, idx: usize, x: i32, y: i32) -> Option<f32> {
+    pub fn drag(&mut self, w_type: WidgetType, idx: usize, x: f32, y: f32) -> Option<f32> {
         match w_type {
             WidgetType::Fader => {
                 self.faders[idx].drag(x, y);
@@ -284,7 +276,7 @@ where
         }
     }
 
-    pub fn hover_dropdown(&mut self, idx: usize, x: i32, y: i32) {
+    pub fn hover_dropdown(&mut self, idx: usize, x: f32, y: f32) {
         self.dropdownbuttons[idx].hover(x, y);
     }
 

@@ -1,10 +1,6 @@
-use crate::{Render, RenderText, rect};
+use crate::rect;
 use super::{TextAlign, Widget};
-use sdl2::pixels::Color;
-use sdl2::rect::Rect;
-use sdl2::render::{Canvas, TextureQuery};
-use sdl2::ttf::Sdl2TtfContext;
-use sdl2::video::Window;
+use sdl3::rect::Rect;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TextField {
@@ -121,103 +117,5 @@ impl TextField {
 impl std::fmt::Display for TextField {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.content)
-    }
-}
-
-impl Render for TextField {
-    fn render(&self, canvas: &mut Canvas<Window>) -> Result<(), String> {
-        if !self.transparent {
-            canvas.set_draw_color(Color::RGB(200, 200, 200));
-            canvas.fill_rect(self.rect)?;
-        }
-        if unsafe { crate::DEBUG } {
-            canvas.set_draw_color(Color::RGB(255, 0, 0));
-            canvas.draw_rect(self.bounds())?;
-            canvas.set_draw_color(Color::RGB(0, 255, 0));
-            canvas.draw_rect(self.visual_bounds())?;
-        }
-
-        Ok(())
-    }
-}
-
-impl RenderText for TextField {
-    fn render_text(
-        &self,
-        ttf: &Sdl2TtfContext,
-        canvas: &mut Canvas<Window>,
-        font_path: &'static str,
-    ) -> Result<(), String> {
-        let texture_creator = canvas.texture_creator();
-        let secret_text = "*".repeat(self.content.len());
-        if !self.content.is_empty() {
-            let mut font = ttf.load_font(font_path, self.font_size)?;
-            font.set_style(sdl2::ttf::FontStyle::NORMAL);
-            canvas.set_clip_rect(Some(self.rect));
-            let surface = font
-                .render(match self.password {
-                    true => &secret_text,
-                    false => &self.content,
-                })
-                .blended(Color::RGB(0, 0, 0))
-                .map_err(|e| e.to_string())?;
-            let content_tex = texture_creator
-                .create_texture_from_surface(&surface)
-                .map_err(|e| e.to_string())?;
-            let TextureQuery { width, height, .. } = content_tex.query();
-            canvas.copy(
-                &content_tex,
-                None,
-                match self.text_align {
-                    TextAlign::Left(n) => rect!(
-                        self.rect.x + n, 
-                        self.rect.y + self.rect.h / 2 - height as i32 / 2,
-                        width, 
-                        height
-                    ),
-                    TextAlign::Right(n) => rect!(
-                        self.rect.x + self.rect.w - width as i32 - n,
-                        self.rect.y + self.rect.h / 2 - height as i32 / 2,
-                        width,
-                        height
-                    ),
-                    TextAlign::Center => rect!(
-                        self.rect.x + self.rect.w / 2 - width as i32 / 2,
-                        self.rect.y + self.rect.h / 2 - height as i32 / 2,
-                        width,
-                        height
-                    ),
-                }
-            )?;
-            canvas.set_clip_rect(None);
-        }
-        // Label
-        if !self.label.is_empty() && !self.transparent {
-            let mut font = ttf.load_font(font_path, 12)?;
-            font.set_style(sdl2::ttf::FontStyle::NORMAL);
-
-            let surface = font
-                .render(&self.label)
-                .blended(Color::RGB(200, 200, 200))
-                .map_err(|e| e.to_string())?;
-            let label_tex = texture_creator
-                .create_texture_from_surface(&surface)
-                .map_err(|e| e.to_string())?;
-
-
-            let TextureQuery { width, height, .. } = label_tex.query();
-            canvas.copy(
-                &label_tex,
-                None,
-                rect!(
-                    self.rect.x, 
-                    self.rect.y.saturating_sub(height as i32),
-                    width, 
-                    height
-                ),
-            )?;
-        }
-
-        Ok(())
     }
 }

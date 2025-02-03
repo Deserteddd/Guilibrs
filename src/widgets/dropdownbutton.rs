@@ -1,6 +1,5 @@
-use sdl2::{pixels::Color, rect::Rect, render::{Canvas, TextureQuery}, ttf::Sdl2TtfContext, video::Window};
-
-use crate::{rect, Render, RenderText};
+use sdl3::rect::Rect;
+use crate::rect;
 
 use super::Widget;
 
@@ -44,11 +43,11 @@ impl DropdownButton {
         self.is_open = !self.is_open;
     }
 
-    pub fn hover(&mut self, _x: i32, y: i32) {
+    pub fn hover(&mut self, _x: f32, y: f32) {
         for i in 1..=self.options.len() {
             let lower = self.rect.y + (i as i32 * self.rect.h);
             let upper = self.rect.y + ((i+1) as i32 * self.rect.h);
-            if y > lower && y <= upper {
+            if y > lower as f32 && y <= upper as f32 {
                 self.hovered = Some(i)
             }
         }
@@ -74,7 +73,7 @@ impl DropdownButton {
 }
 
 impl Widget for DropdownButton {
-    fn bounds(&self) -> sdl2::rect::Rect {
+    fn bounds(&self) -> Rect {
         self.rect
     }
     fn shift(&mut self, x: i32, y: i32) {
@@ -82,7 +81,7 @@ impl Widget for DropdownButton {
         self.rect.y += y;
     }
 
-    fn visual_bounds(&self) -> sdl2::rect::Rect {
+    fn visual_bounds(&self) -> Rect {
         if self.is_open {
             rect!(
                 self.rect.x, self.rect.y, self.rect.w, self.rect.h * (self.options.len()+1) as i32
@@ -90,105 +89,5 @@ impl Widget for DropdownButton {
         } else {
             self.rect
         }
-    }
-}
-
-
-impl Render for DropdownButton {
-    fn render(&self, canvas: &mut sdl2::render::Canvas<sdl2::video::Window>) -> Result<(), String> {
-        canvas.set_draw_color(Color::RGB(200, 200, 200));
-        canvas.fill_rect(self.rect)?;
-        canvas.set_draw_color(Color::RGB(0, 0, 0));
-        canvas.draw_rect(self.rect)?;
-        if !self.is_open {
-            return Ok(())
-        }
-        for i in 0..=self.options.len() {
-            let rect = rect!(
-                self.rect.x, self.rect.y + i as i32 * self.rect.h, self.rect.w, self.rect.h
-            );
-            if self.hovered.is_some() && self.hovered.unwrap() == i {
-                canvas.set_draw_color(Color::RGB(200, 255, 200));
-            } else {
-                canvas.set_draw_color(Color::RGB(200, 200, 200));
-            }
-            canvas.fill_rect(rect)?;
-            canvas.set_draw_color(Color::RGB(60, 60, 60));
-            canvas.draw_line(
-                (self.rect.x, self.rect.y + (i as i32 * self.rect.h)), 
-                (self.rect.x+self.rect.w, self.rect.y + (i as i32 * self.rect.h))
-            )?;
-        }   
-        Ok(())
-    }
-}
-
-impl RenderText for DropdownButton
-{
-    fn render_text(
-        &self,
-        ttf: &Sdl2TtfContext,
-        canvas: &mut Canvas<Window>,
-        font: &'static str,
-    ) -> Result<(), String> {
-        let texture_creator = canvas.texture_creator();
-        let mut font = ttf.load_font(font, 16)?;
-        font.set_style(sdl2::ttf::FontStyle::NORMAL);
-
-        let surface = font
-            .render(&self.options[self.active.saturating_sub(1)])
-            .blended(Color::RGB(0, 0, 0))
-            .map_err(|e| e.to_string())?;
-        let texture = texture_creator
-            .create_texture_from_surface(&surface)
-            .map_err(|e| e.to_string())?;
-        let TextureQuery { width, height, .. } = texture.query();
-
-        canvas.copy(
-            &texture,
-            None,
-            rect!(
-                self.rect.x + 10,
-                self.rect.y + self.rect.h / 2 - height as i32 / 2,
-                width,
-                height
-            ),
-        )?;
-
-        if !self.is_open {
-            return Ok(())
-        }
-
-        for (idx, option) in self.options.iter().enumerate() {
-            let surface = font
-                .render(option)
-                .blended(Color::RGB(0, 0, 0))
-                .map_err(|e| e.to_string())?;
-            let texture = texture_creator
-                .create_texture_from_surface(&surface)
-                .map_err(|e| e.to_string())?;
-            let TextureQuery { width, height, .. } = texture.query();
-            let rect = rect!(
-                self.rect.x + 5, 
-                self.rect.y + ((1 + idx) as i32 * self.rect.h) + 3, 
-                width, 
-                height
-            );
-            canvas.copy(
-                &texture,
-                None,
-                rect
-            )?;
-        }
-
-
-
-        if unsafe {crate::DEBUG}{
-            canvas.set_draw_color(Color::RGB(255, 0, 0));
-            canvas.draw_rect(self.bounds())?;
-            canvas.set_draw_color(Color::RGB(0, 255, 0));
-            canvas.draw_rect(self.visual_bounds())?;
-        }
-        Ok(())
     }
 }

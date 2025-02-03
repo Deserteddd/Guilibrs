@@ -1,10 +1,10 @@
 use crate::widgets::{WidgetData, WidgetType};
 use crate::{Panel, in_bounds, Direction};
 
-use sdl2::event::Event;
-use sdl2::keyboard::{Keycode, Mod};
-use sdl2::mouse::MouseButton;
-use sdl2::{EventPump, Sdl};
+use sdl3::event::Event;
+use sdl3::keyboard::{Keycode, Mod};
+use sdl3::mouse::MouseButton;
+use sdl3::{EventPump, Sdl};
 
 use std::collections::HashMap;
 
@@ -18,7 +18,7 @@ pub struct EventHandler {
 impl EventHandler {
     pub fn new(context: &Sdl) -> Result<EventHandler, String> {
         Ok(EventHandler {
-            pump: context.event_pump()?,
+            pump: context.event_pump().map_err(|e| e.to_string())?,
             active_panel: None,
             hovered: None,
             lmb_pressed_on: None,
@@ -134,14 +134,14 @@ impl EventHandler {
 
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum HandlerEvent {
     Quit,
     Hover(WidgetData),
-    HoverDropdown(WidgetData, i32, i32),
+    HoverDropdown(WidgetData, f32, f32),
     UnHover(WidgetData),
     Click(WidgetData),
-    Drag(WidgetData, i32, i32),
+    Drag(WidgetData, f32, f32),
     ToggleDebug,
     Escape,
     Return,

@@ -1,17 +1,14 @@
 mod handler;
 mod gui;
 mod panel;
+mod renderer;
 pub mod widgets;
-
 
 pub use crate::gui::GUI;
 pub use crate::panel::Panel;
 
-use sdl2::render::Canvas;
-use sdl2::ttf::Sdl2TtfContext;
-use sdl2::video::Window;
-use sdl2::pixels::Color;
-use sdl2::rect::Rect;
+use sdl3::pixels::Color;
+use sdl3::rect::Rect;
 
 const FONT: &'static str = "./Courier_Prime.ttf";
 const BACKROUNDCOLOR: Color = Color::RGB(40, 40, 40);
@@ -20,10 +17,11 @@ static mut DEBUG: bool = false;
 #[macro_export]
 macro_rules! rect(
   ($x:expr, $y:expr, $w:expr, $h:expr) => (
-    sdl2::rect::Rect::new($x as i32, $y as i32, $w as u32, $h as u32)
+    sdl3::rect::Rect::new($x as i32, $y as i32, $w as u32, $h as u32)
   )
 );
 
+#[derive(Debug, PartialEq, PartialOrd)]
 pub enum GuiEvent<T> {
     Quit,
     Callback(&'static str, T),
@@ -40,19 +38,6 @@ pub enum Direction {
     Right
 }
 
-pub trait Render {
-    fn render(&self, canvas: &mut Canvas<Window>) -> Result<(), String>;
-}
-
-pub trait RenderText {
-    fn render_text(
-        &self,
-        ttf: &Sdl2TtfContext,
-        canvas: &mut Canvas<Window>,
-        font: &'static str,
-    ) -> Result<(), String>;
-}
-
 fn bounding_box(rects: Vec<Rect>) -> Rect {
     if rects.is_empty() {
         return Rect::new(0, 0, 0, 0);
@@ -66,6 +51,6 @@ fn bounding_box(rects: Vec<Rect>) -> Rect {
     Rect::new(min_x, min_y, (max_x - min_x) as u32, (max_y - min_y) as u32)
 }
 
-fn in_bounds(rect: &Rect, x: i32, y: i32) -> bool {
-    x >= rect.x && x <= rect.x + rect.w && y >= rect.y && y <= rect.y + rect.h
+fn in_bounds(rect: &Rect, x: f32, y: f32) -> bool {
+    x >= rect.x as f32 && x <= rect.x as f32 + rect.w as f32 && y >= rect.y as f32 && y <= rect.y as f32 + rect.h as f32
 }
