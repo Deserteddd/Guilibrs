@@ -82,7 +82,7 @@ fn main() -> Result<(), String> {
 
 
     'running: loop {
-        match gui.poll() {
+        match gui.poll().unwrap() {
             GuiEvent::None => {}
             GuiEvent::Quit => break 'running,
             GuiEvent::FaderUpdate(panel, u, f) => {
@@ -104,7 +104,7 @@ fn main() -> Result<(), String> {
                 println!("Dropdown menu {u} on panel {panel} updated to: {option}");
             }
         }
-        gui.draw().map_err(|e| e.to_string())?;
+        // gui.draw().map_err(|e| e.to_string())?;
     }
     Ok(())
 }

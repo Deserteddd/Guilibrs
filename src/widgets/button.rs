@@ -13,7 +13,7 @@ pub struct Button<T>
 where
     T: Copy,
 {
-    color: Color,
+    pub color: Color,
     label: &'static str,
     font_size: u16,
     rect: Rect,

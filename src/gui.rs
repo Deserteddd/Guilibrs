@@ -2,10 +2,10 @@ use crate::renderer::Renderer;
 use crate::{GuiEvent, BACKROUNDCOLOR, DEBUG};
 use crate::handler::{EventHandler, HandlerEvent};
 use crate::panel::Panel;
-use crate::widgets::{Button, Fader, TextField, WidgetData};
+use crate::widgets::{Button, Fader, TextField, Widget, WidgetData};
 
 use sdl3::pixels::Color;
-use sdl3::video::Window;
+use sdl3::render::FRect;
 use sdl3::Error;
 
 use std::collections::HashMap;
@@ -14,7 +14,6 @@ pub struct GUI<T>
 where
     T: Copy,
 {
-    window: Window,
     renderer: Renderer,
     handler: EventHandler,
     panels: HashMap<&'static str, Panel<T>>,
@@ -28,14 +27,14 @@ where
         GuiBuilder::new()
     }
 
-    pub fn poll(&mut self) -> GuiEvent<T> {
+    pub fn poll(&mut self) -> Result<GuiEvent<T>, Error> {
         let event = self.handler.poll(&mut self.panels);
         if event != HandlerEvent::None && unsafe {DEBUG}{
             println!("{:?}", event);
         }
         match event {
-            HandlerEvent::None => return GuiEvent::None,
-            HandlerEvent::Quit => return GuiEvent::Quit,
+            HandlerEvent::None => return Ok(GuiEvent::None),
+            HandlerEvent::Quit => return Ok(GuiEvent::Quit),
             HandlerEvent::Escape => self.deselect_all(),
             HandlerEvent::ClickBackround => self.deselect_all(),
             HandlerEvent::ToggleDebug => {
@@ -47,12 +46,15 @@ where
                     .for_each(|panel| {
                         panel.1.push_to_active_textfields(text);
                     });
+                self.draw()?
             },
             HandlerEvent::PopChar => {
                 self.pop_active_textfield();
+                self.draw()?
             },
             HandlerEvent::Hover(widget) => {
                 self.hover_widget(widget);
+                self.draw()?
             },
             HandlerEvent::HoverDropdown(widget, x, y) => {
                 // println!("Hovering dropdown")
@@ -60,13 +62,17 @@ where
                     .get_mut(widget.0)
                     .unwrap()
                     .hover_dropdown(widget.2, x, y);
+
+                self.draw()?
             }
             HandlerEvent::UnHover(widget) => {
                 self.unhover_widget(widget);
+                self.draw()?
             },
             HandlerEvent::Drag(widget, x, y) => {
                 if let Some(val) = self.drag(widget, x, y) {
-                    return GuiEvent::FaderUpdate(widget.0, widget.2, val);
+                    self.draw()?;
+                    return Ok(GuiEvent::FaderUpdate(widget.0, widget.2, val));
                 }
             },
             HandlerEvent::Click(widget) => {
@@ -79,38 +85,42 @@ where
                     }
                 }
                 self.active_widget = Some(widget);
+                self.draw()?;
                 if let Some(cb) = self.panels
                     .get_mut(widget.0)
                     .unwrap()
                     .click(widget) {
-                    return cb
+                    return Ok(cb)
                 }
             },
             HandlerEvent::Return => {
                 if let Some(widget) = self.active_widget {
                     if let Some(cb) = self.panels.get_mut(widget.0).unwrap().click(widget) {
-                        return cb;
+                        self.draw()?;
+                        return Ok(cb);
                     }
                 }
             },
             HandlerEvent::Tab => {
                 let panel = match self.active_widget {
                     Some(w) => w.0,
-                    None => { return GuiEvent::None }
+                    None => return Ok(GuiEvent::None) 
                 };
                 self.active_widget = Some(self.panels
                     .get_mut(panel)
                     .unwrap()
                     .next_widget()
-                )
+                );
+                self.draw()?
             },
             HandlerEvent::ShitTab => {
                 if let Some(widget) = self.active_widget {
                     self.active_widget = self.panels
                         .get_mut(widget.0)
                         .unwrap()
-                        .previous_widget()
+                        .previous_widget();
                     
+                    self.draw()?;
                 }
             },
             HandlerEvent::ArrowKey(dir) => {
@@ -119,16 +129,20 @@ where
                         .get_mut(widget.0)
                         .unwrap()
                         .arrow_key(widget.1, widget.2, dir) {
-                            return event
+                            self.draw()?;
+                            return Ok(event)
                         }
                 }
             },
         }
-        GuiEvent::None
+        Ok(GuiEvent::None)
     }
 
-    pub fn draw(&mut self) -> Result<(), Error> {
-        self.renderer.render(&self.window)
+    fn draw(&mut self) -> Result<(), Error> {
+
+        self.renderer.render_gpu()?;
+
+        Ok(())
 
     }
 
@@ -274,13 +288,22 @@ where
             .build()
             .expect("Window creation failed");
 
-        let renderer = Renderer::new(&window);
+        let mut frects: Vec<FRect> = vec![];
+        self.panels.iter().for_each( |panel| {
+                panel.1.buttons.iter().for_each(|v| frects.push(v.visual_bounds().into()));
+                panel.1.textfields.iter().for_each(|v| frects.push(v.visual_bounds().into()));
+                panel.1.dropdownbuttons.iter().for_each(|v| frects.push(v.visual_bounds().into()));
+                panel.1.faders.iter().for_each(|v| frects.push(v.visual_bounds().into()));
+            }
+        );
+        let mut renderer = Renderer::new(window, &frects);
+        renderer.render_gpu().unwrap();
 
         let handler = EventHandler::new(&sdl_context)
             .expect("Event handler creation failed");
 
         return GUI {
-            window,
+            // window,
             renderer,
             handler,
             panels: self.panels,

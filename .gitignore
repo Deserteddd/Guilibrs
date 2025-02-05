@@ -3,3 +3,4 @@
 /SDL3.dll
 /SDL3.lib
 /examples/init_window.rs
+/build.ps1

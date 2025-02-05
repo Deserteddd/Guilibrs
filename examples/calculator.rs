@@ -22,7 +22,7 @@ fn main() -> Result<(), String> {
     let mut calc = setup();
     let mut running = true;
     while running {
-        match calc.poll() {
+        match calc.poll().unwrap() {
             GuiEvent::None => {}
             GuiEvent::Quit => running = false,
             GuiEvent::Callback(_, cb) => match cb {
@@ -37,7 +37,7 @@ fn main() -> Result<(), String> {
             },
             _ => {}
         }
-        calc.draw().map_err(|e| e.to_string())?;
+        // calc.draw().map_err(|e| e.to_string())?;
     }
 
     Ok(())

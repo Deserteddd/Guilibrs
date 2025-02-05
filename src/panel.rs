@@ -1,7 +1,8 @@
+#![allow(warnings)]
 use core::panic;
 
 use sdl3::pixels::Color;
-use sdl3::render::Canvas;
+use sdl3::render::{Canvas, FRect};
 use sdl3::video::Window;
 use sdl3::rect::Rect;
 use sdl3::Error;
@@ -105,6 +106,24 @@ where
             panic!("get_input: Invalid textfield index")
         };
         self.textfields[idx].to_string()
+    }
+
+    pub fn rects_and_colors(&self) -> Vec<(FRect, Color)> {
+        let mut output = vec![];
+        for btn in self.buttons.iter() {
+            output.push((
+                FRect::from(btn.visual_bounds()),
+                btn.color
+            ));
+        }
+        for fader in self.faders.iter() {
+            output.push((
+                FRect::from(fader.visual_bounds()),
+                Color::WHITE
+            ));
+        }
+        output.sort_by(|a, b| a.1.rgba().cmp(&b.1.rgba()));
+        output
     }
 
     pub fn arrow_key(&mut self, w_type: WidgetType, idx: usize, dir: Direction) -> Option<GuiEvent<T>> {
