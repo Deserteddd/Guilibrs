@@ -25,7 +25,7 @@ macro_rules! rect(
 
 pub enum GuiEvent<T> {
     Quit,
-    Callback(&'static str, T),
+    ButtonPress(&'static str, T),
     FaderUpdate(&'static str, usize, f32),
     DropdownUpdate(&'static str, usize, &'static str),
     None

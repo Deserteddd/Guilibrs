@@ -2,7 +2,7 @@ use guilibrs::{GUI, GuiEvent, Panel};
 use guilibrs::widgets::{Fader, TextField, Button, TextAlign, DropdownButton};
 
 #[derive(Debug, Clone, Copy, Default)]
-enum Callback {
+enum Buttons {
     Login,
     #[default]
     Logout,
@@ -15,7 +15,7 @@ fn main() -> Result<(), String> {
             Button::new(0, 460, 340, 40)
                 .label("Login")
                 .color_rgb(0, 100, 20)
-                .callback(Callback::Login)
+                .callback(Buttons::Login)
         ],
         vec![
             TextField::new(0, 0, 340, 40)
@@ -40,7 +40,7 @@ fn main() -> Result<(), String> {
             Button::new(0, 460, 340, 40)
                 .label("Logout")
                 .color_rgb(120, 20, 20)
-                .callback(Callback::Logout),
+                .callback(Buttons::Logout),
         ],
         vec![
             TextField::new(50, 0, 280, 40)
@@ -74,7 +74,7 @@ fn main() -> Result<(), String> {
         ]
     );
 
-    let mut gui: GUI<Callback> = GUI::new()
+    let mut gui: GUI<Buttons> = GUI::new()
         .panels(&[login_screen, color_editor])
         .initial_panels(&["login"])
         .title("Demo app")
@@ -99,14 +99,14 @@ fn main() -> Result<(), String> {
                 gui.set_textfield_content("editor", 1, format_hex(color));
                 gui.set_backround_color(color);
             },
-            GuiEvent::Callback(panel, callback) => {
-                println!(" Button with callback {:?} clicked on panel {}", callback, panel);
-                match callback {
-                    Callback::Login => {
+            GuiEvent::ButtonPress(panel, button) => {
+                println!("Button: {:?} clicked on panel {}", button, panel);
+                match button {
+                    Buttons::Login => {
                         gui.hide_panel("login");
                         gui.show_panel("editor")
                     },
-                    Callback::Logout => {
+                    Buttons::Logout => {
                         gui.hide_panel("editor");
                         gui.show_panel("login")
                     }

@@ -282,7 +282,7 @@ where
             .0
         );
         match widget.1 {
-            WidgetType::Button => Some(GuiEvent::Callback(self.name, self.buttons[widget.2].click())),
+            WidgetType::Button => Some(GuiEvent::ButtonPress(self.name, self.buttons[widget.2].click())),
             WidgetType::TextField => {
                 if self.textfields[widget.2].is_clickable() {
                     self.textfields[widget.2].set_active(true);
