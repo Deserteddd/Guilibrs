@@ -1,6 +1,13 @@
 use guilibrs::{GUI, GuiEvent, Panel};
 use guilibrs::widgets::{Fader, TextField, Button, TextAlign, DropdownButton};
 
+#[derive(Debug, Clone, Copy, Default)]
+enum Callback {
+    Login,
+    #[default]
+    Logout,
+}
+
 fn main() -> Result<(), String> {
     let login_screen = Panel::new(
         "login", (20, 20),
@@ -8,7 +15,7 @@ fn main() -> Result<(), String> {
             Button::new(0, 460, 340, 40)
                 .label("Login")
                 .color_rgb(0, 100, 20)
-                .callback(1)
+                .callback(Callback::Login)
         ],
         vec![
             TextField::new(0, 0, 340, 40)
@@ -21,33 +28,19 @@ fn main() -> Result<(), String> {
                 .align(TextAlign::Left(10))
                 .clickable()
         ],
-        vec![
-            Fader::new(40, 400, 280)
-                .vertical()
-                .range(0., 255.)
-                .display_on_hover(),
-        ],
-        vec![
-            DropdownButton::new(140, 150)
-                .options(vec![
-                    "Moi",
-                    "Mitä",
-                    "Kuuluu",
-                    "Kukku",
-                    "Luuruu"
-                ])
-        ]
+        vec![],
+        vec![]
     );
 
     let mut color = (40, 40, 40);
     
     let color_editor = Panel::new(
-        "editor", (400, 20),
+        "editor", (20, 20),
         vec![
             Button::new(0, 460, 340, 40)
                 .label("Logout")
                 .color_rgb(120, 20, 20)
-                .callback(1),
+                .callback(Callback::Logout),
         ],
         vec![
             TextField::new(50, 0, 280, 40)
@@ -70,14 +63,23 @@ fn main() -> Result<(), String> {
                 .range(0., 255.)
                 .initial(40.)
         ],
-        vec![]
+        vec![
+            DropdownButton::new(40, 350)
+                .label("Background")
+                .options(vec![
+                    "Red",
+                    "Blue",
+                    "Green",
+                ]),
+        ]
     );
 
-    let mut gui: GUI<u32> = GUI::new()
+    let mut gui: GUI<Callback> = GUI::new()
         .panels(&[login_screen, color_editor])
+        .initial_panels(&["login"])
         .title("Demo app")
         .color(color)
-        .size(760, 540)
+        .size(380, 540)
         .build()?;
 
 
@@ -97,11 +99,36 @@ fn main() -> Result<(), String> {
                 gui.set_textfield_content("editor", 1, format_hex(color));
                 gui.set_backround_color(color);
             },
-            GuiEvent::Callback(panel, num) => {
-                println!("Clicked button {} on panel {}", num, panel);
+            GuiEvent::Callback(panel, callback) => {
+                println!(" Button with callback {:?} clicked on panel {}", callback, panel);
+                match callback {
+                    Callback::Login => {
+                        gui.hide_panel("login");
+                        gui.show_panel("editor")
+                    },
+                    Callback::Logout => {
+                        gui.hide_panel("editor");
+                        gui.show_panel("login")
+                    }
+                    _ => {}
+                }
+
             },
-            GuiEvent::DropdownUpdate(panel, u, option) => {
-                println!("Dropdown menu {u} on panel {panel} updated to: {option}");
+            GuiEvent::DropdownUpdate(_, idx, option) => {
+                println!("DROPDOWN UPDATE: {:?}", option);
+                let color = match (idx, option) {
+                    (0, "Red") => (255, 0, 0),
+                    (0, "Green") => (0, 255, 0),
+                    (0, "Blue") => (0, 0, 255),
+                    _ => (0, 0, 0)
+                };
+                println!("color: {:?}", color);
+                gui.set_fader_value("editor", 0, color.0 as f32);
+                gui.set_fader_value("editor", 1, color.1 as f32);
+                gui.set_fader_value("editor", 2, color.2 as f32);
+                gui.set_backround_color(color);
+                gui.set_textfield_content("editor", 0, format_rgb(color));
+                gui.set_textfield_content("editor", 1, format_hex(color));
             }
         }
         gui.draw()?;

@@ -8,7 +8,7 @@ use sdl2::rect::Rect;
 
 use crate::Direction;
 use crate::widgets::{Button, DropdownButton, Fader, TextField, Widget, WidgetData, WidgetType};
-use crate::{bounding_box, in_bounds, GuiEvent, Render, RenderText, DEBUG};
+use crate::{bounding_box, in_bounds, GuiEvent, Render, DEBUG};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Panel<T> 
@@ -66,26 +66,33 @@ where
 
     pub fn draw(&self, canvas: &mut Canvas<Window>, ttf: &Sdl2TtfContext)
     -> Result<(), String> {
+        // Widgets need to render from last to first in order for dropdown buttons to render correctly on top of each other
+        for idx in 1..=self.widget_order.len() {
+            let idx = self.widget_order.len()-idx;
+            match self.widget_order[idx].0 {
+                WidgetType::Button => {
+                    self.buttons[self.widget_order[idx].1].render(canvas)?;
+                    self.buttons[self.widget_order[idx].1].render_text(ttf, canvas, self.font)?;
+                },
+                WidgetType::Fader => {
+                    self.faders[self.widget_order[idx].1].render(canvas)?;
+                    self.faders[self.widget_order[idx].1].render_text(ttf, canvas, self.font)?;
+                },
+                WidgetType::DropdownButton => {
+                    self.dropdownbuttons[self.widget_order[idx].1].render(canvas)?;
+                    self.dropdownbuttons[self.widget_order[idx].1].render_text(ttf, canvas, self.font)?;
+                },
+                WidgetType::TextField => {
+                    self.textfields[self.widget_order[idx].1].render(canvas)?;
+                    self.textfields[self.widget_order[idx].1].render_text(ttf, canvas, self.font)?;
+                }
+            }
+        }
         if unsafe { DEBUG } {
             canvas.set_draw_color(Color::RGB(255, 0, 0));
             canvas.draw_rect(self.bounds)?;
         }
-        for button in &self.buttons {
-            button.render(canvas)?;
-            button.render_text(ttf, canvas, self.font)?;
-        }
-        for textfield in &self.textfields {
-            textfield.render(canvas)?;
-            textfield.render_text(ttf, canvas, self.font)?;
-        }
-        for fader in &self.faders {
-            fader.render(canvas)?;
-            fader.render_text(ttf, canvas, self.font)?;
-        }
-        for dropdownbutton in &self.dropdownbuttons {
-            dropdownbutton.render(canvas)?;
-            dropdownbutton.render_text(ttf, canvas, self.font)?;
-        }
+
         if let Some(widget) = self.active {
             let widget = self.widget_order[widget];
             let rect = match widget.0 {
@@ -147,13 +154,21 @@ where
             self.select_active();
             return (self.name, self.widget_order[0].0, self.widget_order[0].1);
         }
-        let new = (self.active.unwrap() + 1) % self.widget_order.len();
-        
-        self.deselect_active();
-        self.active = Some(new);
-        self.select_active();
-        
-        (self.name, self.widget_order[new].0, self.widget_order[new].1)
+        // Should only go to next if current is not dropdown that is at the end
+        let active_index = self.active_widget_index().unwrap();
+        if self.active_widget_type() == Some(WidgetType::DropdownButton) 
+        && self.dropdownbuttons[active_index].next() {
+            (self.name, self.widget_order[active_index].0, self.widget_order[active_index].1)
+        } else {
+            let new = (self.active.unwrap() + 1) % self.widget_order.len();
+            
+            self.deselect_active();
+            self.active = Some(new);
+            self.select_active();
+            
+            (self.name, self.widget_order[new].0, self.widget_order[new].1)
+        }
+        //  */
     }
 
     pub fn previous_widget(&mut self) -> Option<WidgetData> {
@@ -275,6 +290,7 @@ where
                 None
             },
             WidgetType::DropdownButton => {
+                println!("Clicking dropdownbutton: {:?}", widget);
                 if let Some(str) = self.dropdownbuttons[widget.2].click() {
                     return Some(GuiEvent::DropdownUpdate(self.name, widget.2, str))
                 }
@@ -315,6 +331,13 @@ where
     fn active_widget_type(&self) -> Option<WidgetType> {
         if let Some(active) = self.active {
             return Some(self.widget_order[active].0);
+        }
+        None
+    }
+
+    fn active_widget_index(&self) -> Option<usize> {
+        if let Some(active) = self.active {
+            return Some(self.widget_order[active].1);
         }
         None
     }

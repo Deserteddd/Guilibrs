@@ -1,4 +1,4 @@
-use crate::{Render, RenderText, rect};
+use crate::{Render, rect};
 use super::{TextAlign, Widget};
 use sdl2::pixels::Color;
 use sdl2::rect::Rect;
@@ -139,9 +139,7 @@ impl Render for TextField {
 
         Ok(())
     }
-}
 
-impl RenderText for TextField {
     fn render_text(
         &self,
         ttf: &Sdl2TtfContext,

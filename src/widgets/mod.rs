@@ -32,7 +32,7 @@ pub enum TextAlign {
 }
 
 
-pub trait Widget{
+pub trait Widget {
     fn shift(&mut self, x: i32, y: i32);
     fn bounds(&self) -> sdl2::rect::Rect;
     fn visual_bounds(&self) -> sdl2::rect::Rect {

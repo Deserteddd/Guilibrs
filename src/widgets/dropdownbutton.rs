@@ -1,6 +1,6 @@
 use sdl2::{pixels::Color, rect::Rect, render::{Canvas, TextureQuery}, ttf::Sdl2TtfContext, video::Window};
 
-use crate::{rect, Render, RenderText};
+use crate::{rect, Render};
 
 use super::Widget;
 
@@ -8,6 +8,7 @@ use super::Widget;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DropdownButton
 {
+    label: &'static str,
     options: Vec<&'static str>,
     rect: Rect,
     is_open: bool,
@@ -18,6 +19,7 @@ pub struct DropdownButton
 impl DropdownButton {
     pub fn new(x: i32, y: i32) -> Self {
         DropdownButton {
+            label: "",
             options: vec![],
             rect: Rect::new(x, y, 100, 20),
             is_open: false,
@@ -31,8 +33,14 @@ impl DropdownButton {
         self
     }
 
+    pub fn label(mut self, label: &'static str) -> Self {
+        self.label = label;
+        self
+    }
+
     pub fn open(&mut self) {
         self.is_open = true;
+        self.hovered = Some(1)
     }
 
     pub fn close(&mut self) {
@@ -44,12 +52,26 @@ impl DropdownButton {
         self.is_open = !self.is_open;
     }
 
+    pub fn next(&mut self) -> bool {
+        if self.hovered == None {
+            self.hovered = Some(1)
+        }
+        if self.hovered.unwrap() < self.options.len() {
+            self.hovered = Some(self.hovered.unwrap() + 1);
+            true
+        } else {
+            self.hovered = None;
+            false
+        }
+    }
+
     pub fn hover(&mut self, _x: i32, y: i32) {
         for i in 1..=self.options.len() {
             let lower = self.rect.y + (i as i32 * self.rect.h);
             let upper = self.rect.y + ((i+1) as i32 * self.rect.h);
             if y > lower && y <= upper {
-                self.hovered = Some(i)
+                self.hovered = Some(i);
+                break
             }
         }
     }
@@ -59,9 +81,11 @@ impl DropdownButton {
     }
 
     pub fn click(&mut self) -> Option<&'static str> {
+        println!("self.hovered: {:?}", self.hovered);
+
         if self.is_open && self.hovered.is_some(){
             self.active = self.hovered.unwrap();
-            let result = Some(self.options[self.active-1]);
+            let result = Some(self.options[self.active.saturating_sub(1)]);
             self.close();
             return result
         } else if !self.is_open {
@@ -121,18 +145,15 @@ impl Render for DropdownButton {
         }   
         Ok(())
     }
-}
 
-impl RenderText for DropdownButton
-{
     fn render_text(
         &self,
         ttf: &Sdl2TtfContext,
         canvas: &mut Canvas<Window>,
-        font: &'static str,
+        font_path: &'static str,
     ) -> Result<(), String> {
         let texture_creator = canvas.texture_creator();
-        let mut font = ttf.load_font(font, 16)?;
+        let mut font = ttf.load_font(font_path, 16)?;
         font.set_style(sdl2::ttf::FontStyle::NORMAL);
 
         let surface = font
@@ -155,33 +176,56 @@ impl RenderText for DropdownButton
             ),
         )?;
 
-        if !self.is_open {
-            return Ok(())
+        if self.is_open {
+            for (idx, option) in self.options.iter().enumerate() {
+                let surface = font
+                    .render(option)
+                    .blended(Color::RGB(0, 0, 0))
+                    .map_err(|e| e.to_string())?;
+                let texture = texture_creator
+                    .create_texture_from_surface(&surface)
+                    .map_err(|e| e.to_string())?;
+                let TextureQuery { width, height, .. } = texture.query();
+                let rect = rect!(
+                    self.rect.x + 5, 
+                    self.rect.y + ((1 + idx) as i32 * self.rect.h) + 3, 
+                    width, 
+                    height
+                );
+                canvas.copy(
+                    &texture,
+                    None,
+                    rect
+                )?;
+            }
         }
 
-        for (idx, option) in self.options.iter().enumerate() {
+
+        if !self.label.is_empty(){
+            let mut font = ttf.load_font(font_path, 12)?;
+            font.set_style(sdl2::ttf::FontStyle::NORMAL);
+
             let surface = font
-                .render(option)
-                .blended(Color::RGB(0, 0, 0))
+                .render(&self.label)
+                .blended(Color::RGB(200, 200, 200))
                 .map_err(|e| e.to_string())?;
-            let texture = texture_creator
+            let label_tex = texture_creator
                 .create_texture_from_surface(&surface)
                 .map_err(|e| e.to_string())?;
-            let TextureQuery { width, height, .. } = texture.query();
-            let rect = rect!(
-                self.rect.x + 5, 
-                self.rect.y + ((1 + idx) as i32 * self.rect.h) + 3, 
-                width, 
-                height
-            );
+
+
+            let TextureQuery { width, height, .. } = label_tex.query();
             canvas.copy(
-                &texture,
+                &label_tex,
                 None,
-                rect
+                rect!(
+                    self.rect.x, 
+                    self.rect.y.saturating_sub(height as i32),
+                    width, 
+                    height
+                ),
             )?;
         }
-
-
 
         if unsafe {crate::DEBUG}{
             canvas.set_draw_color(Color::RGB(255, 0, 0));

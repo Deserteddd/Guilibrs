@@ -1,4 +1,4 @@
-use crate::{Render, RenderText, rect};
+use crate::{Render, rect};
 use super::{Orientation, Widget};
 use sdl2::pixels::Color;
 use sdl2::rect::Rect;
@@ -112,6 +112,17 @@ impl Fader {
         }
     }
 
+    pub fn set_fader_value(&mut self, value: f32) {
+        if value > self.range.1 || value < self.range.0 {
+            panic!("Incorrect fader value: {} - (Range is [{}, {}])", value, self.range.0, self.range.1)
+        }
+        if value == 0.0 { 
+            self.value = 0.0;
+            return
+        }
+        self.value = value/self.range.1
+    }
+
     pub fn drag(&mut self, x: i32, y: i32) {
         match self.orientation {
             Orientation::Horizontal => {
@@ -209,9 +220,7 @@ impl Render for Fader {
 
         Ok(())
     }
-}
 
-impl RenderText for Fader {
     fn render_text(
             &self,
             ttf: &sdl2::ttf::Sdl2TtfContext,

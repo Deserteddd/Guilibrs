@@ -3,7 +3,6 @@ mod gui;
 mod panel;
 pub mod widgets;
 
-
 pub use crate::gui::GUI;
 pub use crate::panel::Panel;
 
@@ -42,15 +41,12 @@ pub enum Direction {
 
 pub trait Render {
     fn render(&self, canvas: &mut Canvas<Window>) -> Result<(), String>;
-}
-
-pub trait RenderText {
     fn render_text(
         &self,
-        ttf: &Sdl2TtfContext,
-        canvas: &mut Canvas<Window>,
-        font: &'static str,
-    ) -> Result<(), String>;
+        _ttf: &Sdl2TtfContext,
+        _canvas: &mut Canvas<Window>,
+        _font: &'static str,
+    ) -> Result<(), String> { Ok(()) }
 }
 
 fn bounding_box(rects: Vec<Rect>) -> Rect {

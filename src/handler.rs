@@ -25,7 +25,7 @@ impl EventHandler {
         })
     }
 
-    pub fn poll<T: Copy + Default>(&mut self, panels: &mut HashMap<&'static str, Panel<T>>) -> HandlerEvent {
+    pub fn poll<T: Copy + Default>(&mut self, panels: &mut HashMap<&'static str, Panel<T>>, visible_panels: &Vec<&'static str>) -> HandlerEvent {
         match self.pump.wait_event() {
             Event::Quit { .. } => HandlerEvent::Quit,
             Event::TextInput { text, .. } => HandlerEvent::TextInput(text),
@@ -34,17 +34,14 @@ impl EventHandler {
             },
             Event::MouseMotion { x, y, .. } => {
                 // If something is pressed, we are dragging it
-                match self.lmb_pressed_on {
-                    Some(widget_data) => {
-                        return HandlerEvent::Drag(widget_data, x, y)
-                    }
-                    None => {}
+                if let Some(widget_data) = self.lmb_pressed_on {
+                    return HandlerEvent::Drag(widget_data, x, y)
                 }
 
                 // If we are not on any panel, we aren't hovering anything
                 self.active_panel = panels
                     .iter()
-                    .find(|panel| in_bounds(&panel.1.bounds, x, y))
+                    .find(|panel| in_bounds(&panel.1.bounds, x, y) && visible_panels.contains(panel.0))
                     .map(|panel| *panel.0);
                 if self.active_panel.is_none() {
                     if self.hovered.is_some() {

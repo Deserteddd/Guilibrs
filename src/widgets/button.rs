@@ -1,5 +1,5 @@
 
-use crate::{Render, RenderText, rect};
+use crate::{Render, rect};
 use super::Widget;
 
 use sdl2::pixels::Color;
@@ -94,12 +94,7 @@ where
         canvas.fill_rect(self.rect)?;
         Ok(())
     }
-}
 
-impl<T> RenderText for Button<T>
-where
-    T: Copy,
-{
     fn render_text(
         &self,
         ttf: &Sdl2TtfContext,

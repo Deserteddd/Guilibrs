@@ -19,6 +19,7 @@ where
     backround_color: Color,
     handler: EventHandler,
     panels: HashMap<&'static str, Panel<T>>,
+    active_panels: Vec<&'static str>,
     active_widget: Option<WidgetData>,
 }
 impl<T> GUI<T>
@@ -30,7 +31,7 @@ where
     }
 
     pub fn poll(&mut self) -> GuiEvent<T> {
-        let event = self.handler.poll(&mut self.panels);
+        let event = self.handler.poll(&mut self.panels, &self.active_panels);
         if event != HandlerEvent::None && unsafe {DEBUG}{
             println!("{:?}", event);
         }
@@ -56,7 +57,6 @@ where
                 self.hover_widget(widget);
             },
             HandlerEvent::HoverDropdown(widget, x, y) => {
-                // println!("Hovering dropdown")
                 self.panels
                     .get_mut(widget.0)
                     .unwrap()
@@ -90,6 +90,7 @@ where
             },
             HandlerEvent::Return => {
                 if let Some(widget) = self.active_widget {
+                    println!("Enter");
                     if let Some(cb) = self.panels.get_mut(widget.0).unwrap().click(widget) {
                         return cb;
                     }
@@ -132,10 +133,11 @@ where
     pub fn draw(&mut self) -> Result<(), String> {
         self.canvas.set_draw_color(self.backround_color);
         self.canvas.clear();
-        for panel in self.panels.values() {
-            panel.draw(&mut self.canvas, &self.ttf_context)?;
+        for panel_name in self.panels.keys() {
+            if self.active_panels.contains(panel_name) {
+                self.panels[panel_name].draw(&mut self.canvas, &self.ttf_context)?;
+            }
         }
-        // self.menu_bar.draw(&mut self.canvas, &self.ttf_context)?;
         self.canvas.present();
         Ok(())
     }
@@ -155,6 +157,15 @@ where
             .set_textfield_content(idx, content);
     }
 
+    pub fn set_fader_value(&mut self, panel: &'static str, fader: usize, value: f32) {
+        let i = self.panels
+            .get_mut(panel)
+            .expect(&format!("Panel '{}' doesn't exist", panel))
+            .faders.iter_mut().nth(fader)
+            .expect(&format!("Fader {} doesn't exist in panel '{}'", fader, panel))
+            .set_fader_value(value);
+    }
+
     pub fn pop_active_textfield(&mut self) {
         self.panels.iter_mut().for_each(|panel|
             panel.1.textfields.iter_mut().for_each(|tb| {
@@ -170,6 +181,18 @@ where
             .get_mut(panel)
             .expect(&format!("Panel '{}' doesn't exist", panel))
             .push_to_textfield(idx, c);
+    }
+
+    pub fn show_panel(&mut self, panel: &'static str) {
+        if !self.active_panels.contains(&panel) {
+            self.active_panels.push(panel);
+        }
+    }
+
+    pub fn hide_panel(&mut self, panel: &'static str) {
+        if let Some(index) = self.active_panels.iter().position(|p| *p == panel) {
+            self.active_panels.remove(index);
+        }
     }
 
     pub fn clear_textfield(&mut self, panel: &'static str, idx: usize) {
@@ -219,6 +242,7 @@ where
     backround_color: Color,
     window_title: &'static str,
     panels: HashMap<&'static str, Panel<T>>,
+    active_panels: Vec<&'static str>,
     buttons: Vec<Button<T>>,
     textfields: Vec<TextField>,
     faders: Vec<Fader>,
@@ -233,6 +257,7 @@ where
             backround_color: BACKROUNDCOLOR,
             window_title: "",
             panels: HashMap::new(),
+            active_panels: vec![],
             buttons: vec![],
             textfields: vec![],
             faders: vec![],
@@ -269,8 +294,12 @@ where
         }
         self
     }
+    pub fn initial_panels(mut self, active: &[&'static str]) -> GuiBuilder<T> {
+        self.active_panels.extend_from_slice(active);
+        self
+    }
 
-    pub fn build(self) -> Result<GUI<T>, String> {
+    pub fn build(mut self) -> Result<GUI<T>, String> {
         let sdl_context = sdl2::init()?;
         let ttf_context = sdl2::ttf::init().map_err(|e| e.to_string())?;
         let canvas = sdl_context
@@ -283,12 +312,19 @@ where
             .build()
             .map_err(|e| e.to_string())?;
 
+        if self.active_panels.is_empty() {
+            for i in self.panels.iter() {
+                self.active_panels.push(i.0);
+            }
+        }
+
         return Ok(GUI {
             ttf_context,
             canvas,
             backround_color: self.backround_color,
             handler: EventHandler::new(&sdl_context)?,
             panels: self.panels,
+            active_panels: self.active_panels,
             active_widget: None,
         });
     }
