@@ -31,7 +31,7 @@ where
     }
 
     pub fn poll(&mut self) -> GuiEvent<T> {
-        let event = self.handler.poll(&mut self.panels, &self.active_panels);
+        let event = self.handler.poll_blocking(&mut self.panels, &self.active_panels);
         if event != HandlerEvent::None && unsafe {DEBUG}{
             println!("{:?}", event);
         }
@@ -142,7 +142,11 @@ where
         Ok(())
     }
 
-    pub fn textfields(&self, panel: &'static str) -> std::slice::Iter<TextField> {
+    pub fn textfields(&self) -> std::slice::Iter<TextField> {
+        self.panels.values().nth(0).unwrap().textfields.iter()
+    }
+
+    pub fn panel_textfields(&self, panel: &'static str) -> std::slice::Iter<TextField> {
         self.panels[panel].textfields.iter()
     }
 
@@ -150,19 +154,37 @@ where
         self.backround_color = Color::RGB(rgb.0, rgb.1, rgb.2);
     }
 
-    pub fn set_textfield_content(&mut self, panel: &'static str, idx: usize, content: String) {
+    pub fn panel_set_textfield_content(&mut self, panel: &'static str, idx: usize, content: String) {
         self.panels
             .get_mut(panel)
             .expect(&format!("Panel '{}' doesn't exist", panel))
             .set_textfield_content(idx, content);
     }
 
-    pub fn set_fader_value(&mut self, panel: &'static str, fader: usize, value: f32) {
-        let i = self.panels
+    pub fn set_textfield_content(&mut self, idx: usize, content: String) {
+        self.panels
+            .values_mut()
+            .nth(0)
+            .unwrap()
+            .set_textfield_content(idx, content);
+    }
+
+    pub fn panel_set_fader_value(&mut self, panel: &'static str, fader: usize, value: f32) {
+        self.panels
             .get_mut(panel)
             .expect(&format!("Panel '{}' doesn't exist", panel))
             .faders.iter_mut().nth(fader)
             .expect(&format!("Fader {} doesn't exist in panel '{}'", fader, panel))
+            .set_fader_value(value);
+    }
+
+    pub fn set_fader_value(&mut self, fader: usize, value: f32) {
+        self.panels
+            .values_mut()
+            .nth(0)
+            .unwrap()
+            .faders.iter_mut().nth(fader)
+            .expect(&format!("Fader {} doesn't exist", fader))
             .set_fader_value(value);
     }
 
@@ -176,10 +198,18 @@ where
         );
     }
 
-    pub fn push_to_textfield(&mut self, panel: &'static str, idx: usize, c: char) {
+    pub fn panel_push_to_textfield(&mut self, panel: &'static str, idx: usize, c: char) {
         self.panels
             .get_mut(panel)
             .expect(&format!("Panel '{}' doesn't exist", panel))
+            .push_to_textfield(idx, c);
+    }
+
+    pub fn push_to_textfield(&mut self, idx: usize, c: char) {
+        self.panels
+            .values_mut()
+            .nth(0)
+            .unwrap()
             .push_to_textfield(idx, c);
     }
 
@@ -195,10 +225,18 @@ where
         }
     }
 
-    pub fn clear_textfield(&mut self, panel: &'static str, idx: usize) {
+    pub fn panel_clear_textfield(&mut self, panel: &'static str, idx: usize) {
         self.panels
             .get_mut(panel)
             .expect(&format!("Panel '{}' doesn't exist", panel))
+            .clear_textfield(idx);
+    }
+
+    pub fn clear_textfield(&mut self, idx: usize) {
+        self.panels
+            .values_mut()
+            .nth(0)
+            .unwrap()
             .clear_textfield(idx);
     }
 
@@ -249,7 +287,7 @@ where
 }
 impl<T> GuiBuilder<T>
 where
-    T: Copy,
+    T: Copy, T: Default
 {
     pub fn new() -> GuiBuilder<T> {
         GuiBuilder {
@@ -311,6 +349,14 @@ where
             .into_canvas()
             .build()
             .map_err(|e| e.to_string())?;
+
+
+        if self.panels.is_empty() {
+            self.panels.insert(
+                "default", 
+                Panel::new("default", (0, 0), self.buttons, self.textfields, self.faders, vec![])
+            );
+        }
 
         if self.active_panels.is_empty() {
             for i in self.panels.iter() {

@@ -25,7 +25,7 @@ impl EventHandler {
         })
     }
 
-    pub fn poll<T: Copy + Default>(&mut self, panels: &mut HashMap<&'static str, Panel<T>>, visible_panels: &Vec<&'static str>) -> HandlerEvent {
+    pub fn poll_blocking<T: Copy + Default>(&mut self, panels: &mut HashMap<&'static str, Panel<T>>, visible_panels: &Vec<&'static str>) -> HandlerEvent {
         match self.pump.wait_event() {
             Event::Quit { .. } => HandlerEvent::Quit,
             Event::TextInput { text, .. } => HandlerEvent::TextInput(text),

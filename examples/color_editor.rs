@@ -95,8 +95,8 @@ fn main() -> Result<(), String> {
                     ("editor", 2) => color.2 = f as u8,
                     _ => {}
                 };
-                gui.set_textfield_content("editor", 0, format_rgb(color));
-                gui.set_textfield_content("editor", 1, format_hex(color));
+                gui.panel_set_textfield_content("editor", 0, format_rgb(color));
+                gui.panel_set_textfield_content("editor", 1, format_hex(color));
                 gui.set_backround_color(color);
             },
             GuiEvent::ButtonPress(panel, button) => {
@@ -123,12 +123,12 @@ fn main() -> Result<(), String> {
                     _ => (0, 0, 0)
                 };
                 println!("color: {:?}", color);
-                gui.set_fader_value("editor", 0, color.0 as f32);
-                gui.set_fader_value("editor", 1, color.1 as f32);
-                gui.set_fader_value("editor", 2, color.2 as f32);
+                gui.panel_set_fader_value("editor", 0, color.0 as f32);
+                gui.panel_set_fader_value("editor", 1, color.1 as f32);
+                gui.panel_set_fader_value("editor", 2, color.2 as f32);
                 gui.set_backround_color(color);
-                gui.set_textfield_content("editor", 0, format_rgb(color));
-                gui.set_textfield_content("editor", 1, format_hex(color));
+                gui.panel_set_textfield_content("editor", 0, format_rgb(color));
+                gui.panel_set_textfield_content("editor", 1, format_hex(color));
             }
         }
         gui.draw()?;

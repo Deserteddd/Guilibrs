@@ -26,12 +26,11 @@ fn main() -> Result<(), String> {
             GuiEvent::None => {}
             GuiEvent::Quit => running = false,
             GuiEvent::ButtonPress(_, button) => match button {
-                Buttons::Num(c) => calc.push_to_textfield("calculator", 0, c as char),
-                Buttons::Clear => calc.clear_textfield("calculator", 0),
+                Buttons::Num(c) => calc.push_to_textfield(0, c as char),
+                Buttons::Clear => calc.clear_textfield(0),
                 Buttons::Equals => {
                     calc.set_textfield_content(
-                        "calculator", 0, 
-                        evaluate(calc.textfields("calculator").nth(0).unwrap())
+                        0, evaluate(calc.textfields().nth(0).unwrap())
                     )
                 }
             },
@@ -39,7 +38,6 @@ fn main() -> Result<(), String> {
         }
         calc.draw()?;
     }
-
     Ok(())
 }
 
@@ -58,7 +56,7 @@ fn setup() -> Result<GUI<Buttons>, String> {
         for j in 0..5 {
             let button = BUTTONS[j][i];
             buttons.push(
-                Button::new(i as i32 * 90, 70 + j as i32 * 90, 60, 60)
+                Button::new(i as i32 * 90 + 20, 70 + j as i32 * 90 + 20, 60, 60)
                     .label(button)
                     .color_rgb(
                         50 + i as u8 * 50,
@@ -74,21 +72,14 @@ fn setup() -> Result<GUI<Buttons>, String> {
         }
     }
 
-    // let calculator = Panel::new(
-    //     "calculator",
-    //     (20, 20),
-    //     buttons,
-    //     vec![TextField::new(0, 0, 340, 40).align(TextAlign::Center).clickable()],
-    //     vec![],
-    //     vec![]
-    // );
-
     GUI::new()
         .title("CalculatoRS")
         .buttons(buttons)
-        // .textfields(
-        //     vec![]
-        // )
+        .textfields(vec![
+            TextField::new(20, 20, 340, 40)
+                .align(TextAlign::Center)
+                .clickable()
+        ])
         .size(380, 540)
         .color((40, 40, 40))
         .build()
