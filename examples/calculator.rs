@@ -1,6 +1,6 @@
 use eval::eval;
 use guilibrs::widgets::{Button, TextField, TextAlign};
-use guilibrs::{GuiEvent, Panel, GUI};
+use guilibrs::{GuiEvent, GUI};
 
 #[derive(Clone, Copy, Default)]
 enum Buttons {
@@ -74,11 +74,12 @@ fn setup() -> Result<GUI<Buttons>, String> {
 
     GUI::new()
         .title("CalculatoRS")
+        .quit_on_escape()
         .buttons(buttons)
         .textfields(vec![
             TextField::new(20, 20, 340, 40)
                 .align(TextAlign::Center)
-                .clickable()
+                .writeable()
         ])
         .size(380, 540)
         .color((40, 40, 40))

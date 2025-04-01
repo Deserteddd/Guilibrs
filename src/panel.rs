@@ -284,7 +284,7 @@ where
         match widget.1 {
             WidgetType::Button => Some(GuiEvent::ButtonPress(self.name, self.buttons[widget.2].click())),
             WidgetType::TextField => {
-                if self.textfields[widget.2].is_clickable() {
+                if self.textfields[widget.2].is_writeable() {
                     self.textfields[widget.2].set_active(true);
                 }
                 None

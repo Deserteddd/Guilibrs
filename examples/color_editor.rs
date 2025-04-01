@@ -21,12 +21,12 @@ fn main() -> Result<(), String> {
             TextField::new(0, 0, 340, 40)
                 .label("Username")
                 .align(TextAlign::Left(10))
-                .clickable(),
+                .writeable(),
             TextField::new(0, 60, 340, 40)
                 .label("Password")
                 .password()
                 .align(TextAlign::Left(10))
-                .clickable()
+                .writeable()
         ],
         vec![],
         vec![]
@@ -110,7 +110,6 @@ fn main() -> Result<(), String> {
                         gui.hide_panel("editor");
                         gui.show_panel("login")
                     }
-                    _ => {}
                 }
 
             },

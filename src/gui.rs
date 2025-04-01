@@ -284,6 +284,7 @@ where
     buttons: Vec<Button<T>>,
     textfields: Vec<TextField>,
     faders: Vec<Fader>,
+    quit_on_escape: bool,
 }
 impl<T> GuiBuilder<T>
 where
@@ -299,6 +300,7 @@ where
             buttons: vec![],
             textfields: vec![],
             faders: vec![],
+            quit_on_escape: false
         }
     }
     pub const fn color(mut self, rgb: (u8, u8, u8)) -> GuiBuilder<T> {
@@ -324,6 +326,10 @@ where
     pub const fn size(mut self, w: u32, h: u32) -> GuiBuilder<T> {
         self.window_size.0 = w;
         self.window_size.1 = h;
+        self
+    }
+    pub const fn quit_on_escape(mut self) -> GuiBuilder<T> {
+        self.quit_on_escape = true;
         self
     }
     pub fn panels(mut self, panels: &[Panel<T>]) -> GuiBuilder<T> {
@@ -368,7 +374,7 @@ where
             ttf_context,
             canvas,
             backround_color: self.backround_color,
-            handler: EventHandler::new(&sdl_context)?,
+            handler: EventHandler::new(&sdl_context, self.quit_on_escape)?,
             panels: self.panels,
             active_panels: self.active_panels,
             active_widget: None,

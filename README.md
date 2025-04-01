@@ -1,5 +1,7 @@
 # Guilibrs - Simple GUI-library using SDL2
 
+To get started fast, see examples/hello_gui.rs
+
 ## Library structre
 
 ### GUI - struct
@@ -73,3 +75,7 @@ The poll-method of **GUI** runs the event loop of the library. Rather than hidin
     }
 
 Note: The poll-method blocks execution when waiting for user input.
+
+## Example: Calculator
+
+In

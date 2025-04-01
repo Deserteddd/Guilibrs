@@ -65,7 +65,7 @@ impl TextField {
         self.label = s;
         self
     }
-    pub const fn clickable(mut self) -> TextField {
+    pub const fn writeable(mut self) -> TextField {
         self.clickable = true;
         self
     }
@@ -88,7 +88,7 @@ impl TextField {
     pub const fn is_password(&self) -> bool {
         self.password
     }
-    pub const fn is_clickable(&self) -> bool {
+    pub const fn is_writeable(&self) -> bool {
         self.clickable
     }
     pub fn content(mut self, s: &str) -> TextField {

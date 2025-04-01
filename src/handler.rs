@@ -13,15 +13,17 @@ pub struct EventHandler {
     active_panel: Option<&'static str>,
     lmb_pressed_on: Option<WidgetData>,
     hovered: Option<WidgetData>,
+    quit_on_escape: bool
 }
 
 impl EventHandler {
-    pub fn new(context: &Sdl) -> Result<EventHandler, String> {
+    pub fn new(context: &Sdl, quit_on_escape: bool) -> Result<EventHandler, String> {
         Ok(EventHandler {
             pump: context.event_pump()?,
             active_panel: None,
             hovered: None,
             lmb_pressed_on: None,
+            quit_on_escape
         })
     }
 
@@ -110,19 +112,20 @@ impl EventHandler {
         if let Some(keycode) = kc {
             return match keycode {
                 Keycode::Backspace => HandlerEvent::PopChar,
-                Keycode::Return => HandlerEvent::Return,
-                Keycode::Escape => HandlerEvent::Escape,
-                Keycode::F12 => HandlerEvent::ToggleDebug,
-                Keycode::Right => HandlerEvent::ArrowKey(Direction::Right),
-                Keycode::Left => HandlerEvent::ArrowKey(Direction::Left),
-                Keycode::Up => HandlerEvent::ArrowKey(Direction::Up),
-                Keycode::Down => HandlerEvent::ArrowKey(Direction::Down),
-                Keycode::Tab => {
-                    match km.contains(Mod::LSHIFTMOD) || km.contains(Mod::RSHIFTMOD) {
-                        true => HandlerEvent::ShitTab,
-                        false => HandlerEvent::Tab
-                    }
-                }
+                Keycode::Return    => HandlerEvent::Return,
+                Keycode::F12       => HandlerEvent::ToggleDebug,
+                Keycode::Right     => HandlerEvent::ArrowKey(Direction::Right),
+                Keycode::Left      => HandlerEvent::ArrowKey(Direction::Left),
+                Keycode::Up        => HandlerEvent::ArrowKey(Direction::Up),
+                Keycode::Down      => HandlerEvent::ArrowKey(Direction::Down),
+                Keycode::Tab       => match km.contains(Mod::LSHIFTMOD) || km.contains(Mod::RSHIFTMOD) {
+                    true  => HandlerEvent::ShitTab,
+                    false => HandlerEvent::Tab
+                },
+                Keycode::Escape    => match self.quit_on_escape {
+                    true  => HandlerEvent::Quit,
+                    false => HandlerEvent::Escape
+                },
                 _ => HandlerEvent::None,
             }
         }
