@@ -6,7 +6,7 @@ fn main() {
         .label("Press me")
         .color_rgb(120, 20, 20);
 
-    let mut gui: GUI<()> = GUI::new()
+    let mut gui = GUI::new()
         .title("My App")        // Sets title of the window
         .size(600, 600)         // Sets Size of the created window (in pixels)
         .buttons(vec![button])  // Adding our button to the GUI
@@ -21,9 +21,12 @@ fn main() {
             // Quit is returned when window is closed or Esc is pressed
             GuiEvent::Quit => break,        
 
-            // poll() returns this when a button is pressed.
-            // Since there is only one button, we should ignore the parameters with _.
-            GuiEvent::ButtonPress(_, _) => println!("Pressed"),
+            // Since there is only one button, there is nothing to identify and we should therefore
+            // Ignore the parameters with an underscore
+            GuiEvent::ButtonPress(_, _) => {
+                // This block executes when the button is pressed
+                println!("Pressed")
+            },
 
             // Ignore other events
             _ => {}

@@ -90,7 +90,6 @@ where
             },
             HandlerEvent::Return => {
                 if let Some(widget) = self.active_widget {
-                    println!("Enter");
                     if let Some(cb) = self.panels.get_mut(widget.0).unwrap().click(widget) {
                         return cb;
                     }
