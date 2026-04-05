@@ -141,11 +141,11 @@ where
         Ok(())
     }
 
-    pub fn textfields(&self) -> std::slice::Iter<TextField> {
+    pub fn textfields(&self) -> std::slice::Iter<'_, TextField> {
         self.panels.values().nth(0).unwrap().textfields.iter()
     }
 
-    pub fn panel_textfields(&self, panel: &'static str) -> std::slice::Iter<TextField> {
+    pub fn panel_textfields(&self, panel: &'static str) -> std::slice::Iter<'_, TextField> {
         self.panels[panel].textfields.iter()
     }
 

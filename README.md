@@ -2,6 +2,8 @@
 
 To get started fast, see examples/hello_button.rs
 
+Run using `cargo run --example hello_button`
+
 ## Library structre
 
 ### GUI - struct
@@ -51,11 +53,11 @@ The generic type **T** is the type from which an instance will be returned when 
         Exit
     }
 
-Inside the mainloop of our program, we can poll the GUI for changes in UI. The method used for this returns an instance of GuiEvent\<T\>
+Inside the event loop of our program, we can poll the GUI for changes in UI. The method used for this returns an instance of GuiEvent\<T\>
 
-### GUI::poll() - function
+### GUI::poll() - method
 
-The poll-method of **GUI** runs the event loop of the library. Rather than hiding the execution of our program inside an App.run() -method, Guilibrs provides methods poll() and draw() that the programmer can use to advance to the next frame, when appropriate:
+The poll-method of **GUI** runs the event loop of the library. Rather than hiding the execution of our program inside an App.run() -method, Guilibrs provides methods poll() and draw() that the developer can use to advance to the next frame, when appropriate:
 
     main() {
         ..
@@ -71,6 +73,10 @@ The poll-method of **GUI** runs the event loop of the library. Rather than hidin
                 }
                 ..
             }
+        }
+        ...
+        if let Err(e) = gui.draw() { 
+        // Handle error
         }
     }
 
