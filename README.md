@@ -1,6 +1,6 @@
 # Guilibrs - Simple GUI-library using SDL2
 
-To get started fast, see examples/hello_gui.rs
+To get started fast, see examples/hello_button.rs
 
 ## Library structre
 
