@@ -75,7 +75,3 @@ The poll-method of **GUI** runs the event loop of the library. Rather than hidin
     }
 
 Note: The poll-method blocks execution when waiting for user input.
-
-## Example: Calculator
-
-In
